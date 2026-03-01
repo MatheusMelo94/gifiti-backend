@@ -1,13 +1,13 @@
 package com.gifiti.api.dto.request;
 
 import com.gifiti.api.model.enums.Priority;
+import com.gifiti.api.validation.SafeUrl;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.URL;
 
 import java.math.BigDecimal;
 
@@ -27,10 +27,10 @@ public class UpdateItemRequest {
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
     private String description;
 
-    @URL(message = "Product link must be a valid URL")
+    @SafeUrl(message = "Product link must be a valid URL (http/https only)")
     private String productLink;
 
-    @URL(message = "Image URL must be a valid URL")
+    @SafeUrl(message = "Image URL must be a valid URL (http/https only)")
     private String imageUrl;
 
     @Positive(message = "Price must be positive")

@@ -184,13 +184,14 @@ public class WishlistItemService {
 
         // Verify the item belongs to the specified wishlist
         if (!item.getWishlistId().equals(wishlistId)) {
-            log.warn("Item {} does not belong to wishlist {}", itemId, wishlistId);
+            log.warn("SECURITY_EVENT: Item {} does not belong to wishlist {} - potential IDOR attempt", itemId, wishlistId);
             throw new ResourceNotFoundException("WishlistItem", "id", itemId);
         }
 
         // Verify user owns the item (via denormalized ownerUserId)
         if (!item.getOwnerUserId().equals(userId)) {
-            log.warn("Access denied: user {} is not owner of item {}", userId, itemId);
+            log.warn("SECURITY_EVENT: Access denied - user {} attempted to access item {} owned by {}",
+                     userId, itemId, item.getOwnerUserId());
             throw new AccessDeniedException("Access denied");
         }
 

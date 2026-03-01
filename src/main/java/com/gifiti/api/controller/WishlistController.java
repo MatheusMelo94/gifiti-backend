@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,10 +25,14 @@ import org.springframework.web.bind.annotation.*;
  * - Method-level @PreAuthorize for defense-in-depth
  * - URL-level security in SecurityConfig provides first layer
  * - Service-layer ownership validation provides third layer
+ *
+ * Security hardening (L-01):
+ * - Explicit produces for Content-Type validation
+ * - Returns application/json responses
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/wishlists")
+@RequestMapping(path = "/api/v1/wishlists", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class WishlistController {
@@ -60,7 +65,7 @@ public class WishlistController {
      * @param userDetails Authenticated user
      * @return Created wishlist
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WishlistResponse> createWishlist(
             @Valid @RequestBody CreateWishlistRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -97,7 +102,7 @@ public class WishlistController {
      * @param userDetails Authenticated user
      * @return Updated wishlist
      */
-    @PutMapping("/{id}")
+    @PutMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WishlistResponse> updateWishlist(
             @PathVariable String id,
             @Valid @RequestBody UpdateWishlistRequest request,

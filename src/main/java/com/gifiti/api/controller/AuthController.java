@@ -1,6 +1,7 @@
 package com.gifiti.api.controller;
 
 import com.gifiti.api.dto.request.LoginRequest;
+import com.gifiti.api.dto.request.RefreshTokenRequest;
 import com.gifiti.api.dto.request.RegisterRequest;
 import com.gifiti.api.dto.response.AuthResponse;
 import com.gifiti.api.dto.response.RegisterResponse;
@@ -9,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,11 +19,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for authentication endpoints.
- * Handles user registration and login.
+ * Handles user registration, login, and token refresh.
+ *
+ * Security hardening (L-01):
+ * - Explicit consumes/produces for Content-Type validation
+ * - Only accepts application/json requests
+ * - Returns application/json responses
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(
+        path = "/api/v1/auth",
+        consumes = MediaType.APPLICATION_JSON_VALUE,
+        produces = MediaType.APPLICATION_JSON_VALUE
+)
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -54,6 +65,27 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         log.debug("Login request received for email: {}", request.getEmail());
         AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Refresh access token using a valid refresh token.
+     *
+     * POST /api/v1/auth/refresh
+     *
+     * Security (C-01 fix):
+     * - Validates refresh token signature and expiration
+     * - Issues new access token without requiring password
+     * - Returns same refresh token (no rotation to prevent token replay issues)
+     * - Rate limited via RateLimitFilter
+     *
+     * @param request Refresh token
+     * @return 200 OK with new access token, or 401 Unauthorized if token invalid
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        log.debug("Token refresh request received");
+        AuthResponse response = authService.refresh(request);
         return ResponseEntity.ok(response);
     }
 }

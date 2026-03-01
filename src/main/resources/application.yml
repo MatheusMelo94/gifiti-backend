@@ -20,6 +20,12 @@ jwt:
 
 server:
   port: ${PORT:8080}
+  # M-06 Security hardening: Disable error details and server header
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
   # Request size limits
   tomcat:
     max-http-form-post-size: 1MB

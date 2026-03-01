@@ -21,7 +21,10 @@ import java.io.IOException;
  * Protected endpoints:
  * - POST /api/v1/auth/register - 10 req/min per IP
  * - POST /api/v1/auth/login - 10 req/min per IP
+ * - POST /api/v1/auth/refresh - 20 req/min per IP (M-02 security fix)
  * - POST /api/v1/public/wishlists/{id}/items/{itemId}/reserve - 30 req/min per IP
+ * - GET /api/v1/public/wishlists/* - 60 req/min per IP
+ * - /api/v1/wishlists/* (authenticated) - 100 req/min per IP
  */
 @Slf4j
 @Component
@@ -30,6 +33,8 @@ import java.io.IOException;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitConfig rateLimitConfig;
+
+    private static final long MAX_CONTENT_LENGTH = 1_048_576; // 1MB
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -40,17 +45,43 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         String clientIp = getClientIp(request);
 
-        // Check rate limits for auth endpoints
+        // M-03 Security fix: Reject oversized requests before processing
+        long contentLength = request.getContentLengthLong();
+        if (contentLength > MAX_CONTENT_LENGTH) {
+            log.warn("SECURITY_EVENT: Oversized request rejected: {} bytes from IP={}",
+                     contentLength, maskIp(clientIp));
+            sendPayloadTooLargeResponse(response);
+            return;
+        }
+
+        // Check rate limits for auth endpoints (M-02: separate refresh from login/register)
         if ("POST".equals(method) && path.startsWith("/api/v1/auth/")) {
-            if (!rateLimitConfig.tryConsumeAuth(clientIp)) {
-                sendRateLimitResponse(response);
-                return;
+            if (path.endsWith("/refresh")) {
+                // Separate rate limit for refresh endpoint (20 req/min)
+                if (!rateLimitConfig.tryConsumeRefresh(clientIp)) {
+                    sendRateLimitResponse(response);
+                    return;
+                }
+            } else {
+                // Stricter rate limit for login/register (10 req/min)
+                if (!rateLimitConfig.tryConsumeAuth(clientIp)) {
+                    sendRateLimitResponse(response);
+                    return;
+                }
             }
         }
 
         // Check rate limits for reservation endpoint
         if ("POST".equals(method) && path.contains("/items/") && path.endsWith("/reserve")) {
             if (!rateLimitConfig.tryConsumeReservation(clientIp)) {
+                sendRateLimitResponse(response);
+                return;
+            }
+        }
+
+        // M-04 Security fix: Rate limit public wishlist viewing
+        if ("GET".equals(method) && path.startsWith("/api/v1/public/wishlists")) {
+            if (!rateLimitConfig.tryConsumePublic(clientIp)) {
                 sendRateLimitResponse(response);
                 return;
             }
@@ -130,5 +161,35 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     "message": "Rate limit exceeded. Please try again later."
                 }
                 """.formatted(java.time.Instant.now().toString()));
+    }
+
+    /**
+     * Send 413 Payload Too Large response (M-03 security fix).
+     */
+    private void sendPayloadTooLargeResponse(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
+        response.setContentType("application/json");
+        response.getWriter().write("""
+                {
+                    "timestamp": "%s",
+                    "status": 413,
+                    "error": "Payload Too Large",
+                    "message": "Request body exceeds maximum allowed size."
+                }
+                """.formatted(java.time.Instant.now().toString()));
+    }
+
+    /**
+     * Mask IP address for logging (privacy).
+     */
+    private String maskIp(String ip) {
+        if (ip == null || ip.length() < 4) {
+            return "***";
+        }
+        int lastDot = ip.lastIndexOf('.');
+        if (lastDot > 0) {
+            return ip.substring(0, lastDot + 1) + "***";
+        }
+        return ip.substring(0, Math.min(ip.length(), 8)) + "***";
     }
 }

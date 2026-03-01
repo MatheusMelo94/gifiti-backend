@@ -55,6 +55,24 @@ public class RateLimitConfig {
             .build();
 
     /**
+     * Cache for public endpoint rate limit buckets (M-04 security fix).
+     * Prevents enumeration and DoS attacks on public wishlist viewing.
+     */
+    private final Cache<String, Bucket> publicBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .maximumSize(10_000)
+            .build();
+
+    /**
+     * Cache for token refresh endpoint rate limit buckets (M-02 security fix).
+     * Separate from auth to prevent refresh traffic from blocking logins.
+     */
+    private final Cache<String, Bucket> refreshBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .maximumSize(10_000)
+            .build();
+
+    /**
      * Try to consume a token from the auth bucket.
      * Limit: 10 requests per minute per IP.
      *
@@ -136,6 +154,61 @@ public class RateLimitConfig {
     }
 
     /**
+     * Try to consume a token from the public bucket (M-04 security fix).
+     * Limit: 60 requests per minute per IP.
+     *
+     * @param clientIp The client IP address
+     * @return true if request is allowed, false if rate limited
+     */
+    public boolean tryConsumePublic(String clientIp) {
+        Bucket bucket = publicBuckets.get(clientIp, ip -> createPublicBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Rate limit exceeded for public endpoint, IP: {}", maskIp(clientIp));
+        }
+        return allowed;
+    }
+
+    /**
+     * Create a rate limit bucket for public endpoints.
+     * 60 requests per minute (prevents enumeration/scraping).
+     */
+    private Bucket createPublicBucket() {
+        Bandwidth limit = Bandwidth.classic(60, Refill.greedy(60, Duration.ofMinutes(1)));
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
+    }
+
+    /**
+     * Try to consume a token from the refresh bucket (M-02 security fix).
+     * Limit: 20 requests per minute per IP.
+     * More permissive than auth since no password guessing risk.
+     *
+     * @param clientIp The client IP address
+     * @return true if request is allowed, false if rate limited
+     */
+    public boolean tryConsumeRefresh(String clientIp) {
+        Bucket bucket = refreshBuckets.get(clientIp, ip -> createRefreshBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Rate limit exceeded for refresh endpoint, IP: {}", maskIp(clientIp));
+        }
+        return allowed;
+    }
+
+    /**
+     * Create a rate limit bucket for token refresh endpoint.
+     * 20 requests per minute (less restrictive than login since no password guessing).
+     */
+    private Bucket createRefreshBucket() {
+        Bandwidth limit = Bandwidth.classic(20, Refill.greedy(20, Duration.ofMinutes(1)));
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
+    }
+
+    /**
      * Mask IP address for logging (privacy).
      */
     private String maskIp(String ip) {
@@ -153,9 +226,11 @@ public class RateLimitConfig {
      * Get current cache sizes for monitoring.
      */
     public String getCacheStats() {
-        return String.format("auth=%d, reservation=%d, authenticated=%d",
+        return String.format("auth=%d, reservation=%d, authenticated=%d, public=%d, refresh=%d",
                 authBuckets.estimatedSize(),
                 reservationBuckets.estimatedSize(),
-                authenticatedBuckets.estimatedSize());
+                authenticatedBuckets.estimatedSize(),
+                publicBuckets.estimatedSize(),
+                refreshBuckets.estimatedSize());
     }
 }

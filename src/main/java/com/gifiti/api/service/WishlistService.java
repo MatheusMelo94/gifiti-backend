@@ -157,7 +157,8 @@ public class WishlistService {
                 .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "id", id));
 
         if (!wishlist.getOwnerUserId().equals(userId)) {
-            log.warn("Access denied: user {} is not owner of wishlist {}", userId, id);
+            log.warn("SECURITY_EVENT: Access denied - user {} attempted to access wishlist {} owned by {}",
+                     userId, id, wishlist.getOwnerUserId());
             throw new AccessDeniedException("Access denied");
         }
 
