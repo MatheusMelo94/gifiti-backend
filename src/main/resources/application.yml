@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: gifiti-backend
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/gifiti}
+      auto-index-creation: true
+  # Request size limits to prevent DoS attacks
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
+
+jwt:
+  # SECURITY: No default value - JWT_SECRET must be set via environment variable
+  # Generate with: openssl rand -base64 32
+  secret: ${JWT_SECRET}
+  expiration: 3600000  # 1 hour in milliseconds
+  refresh-expiration: 604800000  # 7 days in milliseconds
+
+server:
+  port: ${PORT:8080}
+  # Request size limits
+  tomcat:
+    max-http-form-post-size: 1MB
+    max-swallow-size: 1MB
+
+# CORS configuration - override for production
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+
+logging:
+  level:
+    root: INFO
+    com.gifiti.api: DEBUG
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
