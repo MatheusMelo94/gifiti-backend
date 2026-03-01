@@ -56,6 +56,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
 
+        // Check rate limits for authenticated endpoints (M-05 security fix)
+        // Protects against abuse from compromised accounts
+        if (path.startsWith("/api/v1/wishlists") && !path.startsWith("/api/v1/public")) {
+            if (!rateLimitConfig.tryConsumeAuthenticated(clientIp)) {
+                sendRateLimitResponse(response);
+                return;
+            }
+        }
+
         filterChain.doFilter(request, response);
     }
 

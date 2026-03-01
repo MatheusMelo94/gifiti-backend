@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +19,17 @@ import org.springframework.web.bind.annotation.*;
 /**
  * REST controller for wishlist management.
  * All endpoints require authentication.
+ *
+ * Security hardening (H-03):
+ * - Method-level @PreAuthorize for defense-in-depth
+ * - URL-level security in SecurityConfig provides first layer
+ * - Service-layer ownership validation provides third layer
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/wishlists")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class WishlistController {
 
     private final WishlistService wishlistService;

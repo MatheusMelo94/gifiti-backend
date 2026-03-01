@@ -16,6 +16,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
 
 /**
@@ -40,22 +42,38 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 // Security headers to prevent common attacks
-                .headers(headers -> headers
+                // M-04: Added Referrer-Policy, Permissions-Policy, X-Permitted-Cross-Domain-Policies
+                .headers(headers -> {
                         // Prevent clickjacking - deny all framing
-                        .frameOptions(frame -> frame.deny())
+                        headers.frameOptions(frame -> frame.deny());
                         // XSS protection
-                        .xssProtection(xss -> xss
-                                .headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                        headers.xssProtection(xss -> xss
+                                .headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK));
                         // Prevent MIME type sniffing
-                        .contentTypeOptions(contentType -> {})
+                        headers.contentTypeOptions(contentType -> {});
                         // HSTS - enforce HTTPS (1 year, include subdomains)
-                        .httpStrictTransportSecurity(hsts -> hsts
+                        headers.httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000))
+                                .maxAgeInSeconds(31536000));
                         // Content Security Policy - restrict resource loading
-                        .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; frame-ancestors 'none'; form-action 'self'"))
-                )
+                        headers.contentSecurityPolicy(csp -> csp
+                                .policyDirectives(
+                                        "default-src 'self'; " +
+                                        "frame-ancestors 'none'; " +
+                                        "form-action 'self'; " +
+                                        "base-uri 'self'; " +
+                                        "object-src 'none'"
+                                ));
+                        // Referrer-Policy - prevent referrer leakage (M-04)
+                        headers.referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                        // Permissions-Policy - restrict browser features (M-04)
+                        headers.permissionsPolicy(permissions -> permissions
+                                .policy("camera=(), microphone=(), geolocation=(), payment=()"));
+                        // X-Permitted-Cross-Domain-Policies - block Adobe Flash/PDF cross-domain
+                        headers.addHeaderWriter(new StaticHeadersWriter(
+                                "X-Permitted-Cross-Domain-Policies", "none"));
+                })
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth

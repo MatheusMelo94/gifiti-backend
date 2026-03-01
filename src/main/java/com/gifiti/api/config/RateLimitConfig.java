@@ -1,5 +1,7 @@
 package com.gifiti.api.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -7,45 +9,97 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Rate limiting configuration using Bucket4j.
- * Provides token bucket rate limiters for sensitive endpoints.
+ * Rate limiting configuration using Bucket4j with Caffeine cache.
  *
- * Security hardening:
+ * Security hardening (H-02):
+ * - Uses Caffeine cache with automatic TTL-based eviction (prevents memory leak)
+ * - Hard limit of 10,000 entries per cache (prevents memory exhaustion)
+ * - Buckets automatically evicted after 10 minutes of inactivity
+ *
+ * Rate limits:
  * - Auth endpoints: 10 requests per minute per IP (prevents brute force)
  * - Reservation endpoint: 30 requests per minute per IP (prevents abuse)
+ * - Authenticated endpoints: 100 requests per minute per IP (prevents abuse)
  */
 @Slf4j
 @Component
 public class RateLimitConfig {
 
-    // Cache of rate limit buckets per IP
-    private final Map<String, Bucket> authBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> reservationBuckets = new ConcurrentHashMap<>();
+    /**
+     * Cache for auth endpoint rate limit buckets.
+     * Auto-evicts entries after 10 minutes of inactivity.
+     * Maximum 10,000 unique IPs tracked.
+     */
+    private final Cache<String, Bucket> authBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .maximumSize(10_000)
+            .build();
 
     /**
-     * Get or create a rate limit bucket for auth endpoints.
+     * Cache for reservation endpoint rate limit buckets.
+     */
+    private final Cache<String, Bucket> reservationBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .maximumSize(10_000)
+            .build();
+
+    /**
+     * Cache for authenticated endpoint rate limit buckets.
+     * More permissive limit for logged-in users.
+     */
+    private final Cache<String, Bucket> authenticatedBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(5))
+            .maximumSize(10_000)
+            .build();
+
+    /**
+     * Try to consume a token from the auth bucket.
      * Limit: 10 requests per minute per IP.
      *
      * @param clientIp The client IP address
-     * @return The rate limit bucket for this IP
+     * @return true if request is allowed, false if rate limited
      */
-    public Bucket getAuthBucket(String clientIp) {
-        return authBuckets.computeIfAbsent(clientIp, ip -> createAuthBucket());
+    public boolean tryConsumeAuth(String clientIp) {
+        Bucket bucket = authBuckets.get(clientIp, ip -> createAuthBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Rate limit exceeded for auth endpoint, IP: {}", maskIp(clientIp));
+        }
+        return allowed;
     }
 
     /**
-     * Get or create a rate limit bucket for reservation endpoints.
+     * Try to consume a token from the reservation bucket.
      * Limit: 30 requests per minute per IP.
      *
      * @param clientIp The client IP address
-     * @return The rate limit bucket for this IP
+     * @return true if request is allowed, false if rate limited
      */
-    public Bucket getReservationBucket(String clientIp) {
-        return reservationBuckets.computeIfAbsent(clientIp, ip -> createReservationBucket());
+    public boolean tryConsumeReservation(String clientIp) {
+        Bucket bucket = reservationBuckets.get(clientIp, ip -> createReservationBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Rate limit exceeded for reservation endpoint, IP: {}", maskIp(clientIp));
+        }
+        return allowed;
+    }
+
+    /**
+     * Try to consume a token from the authenticated bucket.
+     * Limit: 100 requests per minute per IP.
+     *
+     * @param clientIp The client IP address
+     * @return true if request is allowed, false if rate limited
+     */
+    public boolean tryConsumeAuthenticated(String clientIp) {
+        Bucket bucket = authenticatedBuckets.get(clientIp, ip -> createAuthenticatedBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Rate limit exceeded for authenticated endpoint, IP: {}", maskIp(clientIp));
+        }
+        return allowed;
     }
 
     /**
@@ -71,31 +125,14 @@ public class RateLimitConfig {
     }
 
     /**
-     * Try to consume a token from the auth bucket.
-     *
-     * @param clientIp The client IP address
-     * @return true if request is allowed, false if rate limited
+     * Create a rate limit bucket for authenticated endpoints.
+     * 100 requests per minute (generous for legitimate users).
      */
-    public boolean tryConsumeAuth(String clientIp) {
-        boolean allowed = getAuthBucket(clientIp).tryConsume(1);
-        if (!allowed) {
-            log.warn("Rate limit exceeded for auth endpoint, IP: {}", maskIp(clientIp));
-        }
-        return allowed;
-    }
-
-    /**
-     * Try to consume a token from the reservation bucket.
-     *
-     * @param clientIp The client IP address
-     * @return true if request is allowed, false if rate limited
-     */
-    public boolean tryConsumeReservation(String clientIp) {
-        boolean allowed = getReservationBucket(clientIp).tryConsume(1);
-        if (!allowed) {
-            log.warn("Rate limit exceeded for reservation endpoint, IP: {}", maskIp(clientIp));
-        }
-        return allowed;
+    private Bucket createAuthenticatedBucket() {
+        Bandwidth limit = Bandwidth.classic(100, Refill.greedy(100, Duration.ofMinutes(1)));
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
     }
 
     /**
@@ -105,17 +142,20 @@ public class RateLimitConfig {
         if (ip == null || ip.length() < 4) {
             return "***";
         }
-        return ip.substring(0, ip.lastIndexOf('.') + 1) + "***";
+        int lastDot = ip.lastIndexOf('.');
+        if (lastDot > 0) {
+            return ip.substring(0, lastDot + 1) + "***";
+        }
+        return ip.substring(0, Math.min(ip.length(), 8)) + "***";
     }
 
     /**
-     * Clean up old buckets (call periodically in production).
-     * Simple implementation - clears all buckets.
+     * Get current cache sizes for monitoring.
      */
-    public void cleanup() {
-        log.debug("Cleaning up rate limit buckets: {} auth, {} reservation",
-                authBuckets.size(), reservationBuckets.size());
-        authBuckets.clear();
-        reservationBuckets.clear();
+    public String getCacheStats() {
+        return String.format("auth=%d, reservation=%d, authenticated=%d",
+                authBuckets.estimatedSize(),
+                reservationBuckets.estimatedSize(),
+                authenticatedBuckets.estimatedSize());
     }
 }

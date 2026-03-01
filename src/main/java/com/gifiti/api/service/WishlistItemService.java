@@ -14,6 +14,7 @@ import com.gifiti.api.repository.WishlistItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -121,12 +122,17 @@ public class WishlistItemService {
     /**
      * Delete an item, verifying ownership.
      *
+     * Security hardening (H-01):
+     * - Uses MongoDB transaction for atomic cascade deletion
+     * - Prevents race condition with concurrent reservation
+     *
      * @param wishlistId Wishlist ID
      * @param itemId Item ID
      * @param userId Requesting user's ID
      * @throws ResourceNotFoundException if item not found
      * @throws AccessDeniedException if user is not the owner
      */
+    @Transactional
     public void delete(String wishlistId, String itemId, String userId) {
         log.info("Deleting item {} in wishlist {} for user {}", itemId, wishlistId, userId);
 
