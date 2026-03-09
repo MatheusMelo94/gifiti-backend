@@ -3,6 +3,9 @@ spring:
     mongodb:
       # URI is set dynamically by Testcontainers
       auto-index-creation: true
+  mail:
+    host: localhost
+    port: 25
 
 jwt:
   secret: test-secret-key-for-testing-minimum-32-characters

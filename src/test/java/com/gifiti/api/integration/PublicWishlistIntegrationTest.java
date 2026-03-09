@@ -19,27 +19,31 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Integration tests for public wishlist viewing.
+ * Integration tests for shared wishlist viewing.
+ * All access requires authentication — users must be logged in AND have the shareable link.
  */
 class PublicWishlistIntegrationTest extends BaseIntegrationTest {
 
     private String ownerToken;
+    private String viewerToken;
 
     @BeforeEach
     void setup() throws Exception {
         ownerToken = createUserAndGetToken("publicowner@example.com", "Password123!");
+        viewerToken = createUserAndGetToken("viewer@example.com", "Password123!");
     }
 
     @Nested
     @DisplayName("GET /api/v1/public/wishlists/{shareableId}")
-    class PublicViewTests {
+    class SharedViewTests {
 
         @Test
-        @DisplayName("should allow anonymous access to public wishlist")
-        void shouldAllowAnonymousAccessToPublicWishlist() throws Exception {
+        @DisplayName("should allow authenticated user to view shared wishlist")
+        void shouldAllowAuthenticatedAccessToSharedWishlist() throws Exception {
             String shareableId = createPublicWishlist("Public Birthday List");
 
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.title").value("Public Birthday List"))
                     .andExpect(jsonPath("$.shareableId").value(shareableId));
@@ -50,7 +54,8 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         void shouldReturnWishlistWithAllItems() throws Exception {
             var ids = createPublicWishlistWithItems();
 
-            mockMvc.perform(get("/api/v1/public/wishlists/" + ids.shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + ids.shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items").isArray())
                     .andExpect(jsonPath("$.items", hasSize(3)))
@@ -58,11 +63,12 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should show item details in public view")
-        void shouldShowItemDetailsInPublicView() throws Exception {
+        @DisplayName("should show item details in shared view")
+        void shouldShowItemDetailsInSharedView() throws Exception {
             var ids = createPublicWishlistWithItems();
 
-            mockMvc.perform(get("/api/v1/public/wishlists/" + ids.shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + ids.shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].name").exists())
                     .andExpect(jsonPath("$.items[0].description").exists())
@@ -76,25 +82,27 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         void shouldReturn404ForPrivateWishlist() throws Exception {
             String shareableId = createPrivateWishlist("Secret Wishlist");
 
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isNotFound());
         }
 
         @Test
         @DisplayName("should return 404 for non-existent shareableId")
         void shouldReturn404ForNonExistentShareableId() throws Exception {
-            mockMvc.perform(get("/api/v1/public/wishlists/nonexistent123"))
+            mockMvc.perform(get("/api/v1/public/wishlists/nonexistent123")
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isNotFound());
         }
 
         @Test
-        @DisplayName("should not require authentication for public access")
-        void shouldNotRequireAuthenticationForPublicAccess() throws Exception {
-            String shareableId = createPublicWishlist("No Auth Required");
+        @DisplayName("should require authentication to view shared wishlist")
+        void shouldRequireAuthenticationToViewSharedWishlist() throws Exception {
+            String shareableId = createPublicWishlist("Auth Required");
 
-            // Note: No Authorization header
+            // No Authorization header → 401
             mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
-                    .andExpect(status().isOk());
+                    .andExpect(status().isUnauthorized());
         }
     }
 
@@ -107,8 +115,9 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         void shouldHideWishlistWhenVisibilityChangesToPrivate() throws Exception {
             String shareableId = createPublicWishlist("Initially Public");
 
-            // Verify public access works
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            // Verify authenticated access works
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isOk());
 
             // Change to private
@@ -123,8 +132,9 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
 
-            // Public access should now fail
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            // Access should now fail even when authenticated
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isNotFound());
         }
 
@@ -133,8 +143,9 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         void shouldShowWishlistWhenVisibilityChangesToPublic() throws Exception {
             String shareableId = createPrivateWishlist("Initially Private");
 
-            // Verify public access fails
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            // Verify access fails
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isNotFound());
 
             // Change to public
@@ -149,8 +160,9 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
 
-            // Public access should now work
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            // Access should now work
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(viewerToken)))
                     .andExpect(status().isOk());
         }
     }

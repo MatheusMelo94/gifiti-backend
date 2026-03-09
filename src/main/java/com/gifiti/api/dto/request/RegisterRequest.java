@@ -1,5 +1,6 @@
 package com.gifiti.api.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -21,11 +22,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Registration details for a new user")
 public class RegisterRequest {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be valid")
     @Size(max = 254, message = "Email must not exceed 254 characters")
+    @Schema(description = "User email address", example = "jane@example.com")
     private String email;
 
     @NotBlank(message = "Password is required")
@@ -34,5 +37,10 @@ public class RegisterRequest {
         regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._#^()\\-+=])[A-Za-z\\d@$!%*?&._#^()\\-+=]{12,}$",
         message = "Password must contain uppercase, lowercase, digit, and special character (@$!%*?&._#^()-+=)"
     )
+    @Schema(description = "Password (12-128 chars, must include upper, lower, digit, special)", example = "MySecureP@ss1")
     private String password;
+
+    @Size(max = 50, message = "Display name must not exceed 50 characters")
+    @Schema(description = "Optional display name (derived from email if absent)", example = "Maria Santos")
+    private String displayName;
 }

@@ -16,17 +16,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Integration tests for reservation functionality.
- * Tests reservation atomicity and the reserve/unreserve flow.
+ * All reservation and viewing operations require authentication.
  */
 class ReservationIntegrationTest extends BaseIntegrationTest {
 
     private String ownerToken;
+    private String reserverToken;
     private String wishlistId;
     private String shareableId;
 
     @BeforeEach
     void setup() throws Exception {
         ownerToken = createUserAndGetToken("owner@example.com", "Password123!");
+        reserverToken = createUserAndGetToken("reserver@example.com", "Password123!");
 
         // Create public wishlist
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()
@@ -51,18 +53,20 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
     class ReserveTests {
 
         @Test
-        @DisplayName("should reserve an available item")
+        @DisplayName("should reserve an available item when authenticated")
         void shouldReserveAvailableItem() throws Exception {
             String itemId = createItem("Gift Item");
 
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.itemId").value(itemId))
                     .andExpect(jsonPath("$.reserved").value(true))
                     .andExpect(jsonPath("$.message").value(containsString("successfully")));
 
             // Verify item status changed to RESERVED
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].status").value("RESERVED"));
         }
@@ -73,11 +77,14 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
             String itemId = createItem("Popular Item");
 
             // First reservation succeeds
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk());
 
             // Second reservation fails with 409 Conflict
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            String anotherReserverToken = createUserAndGetToken("another@example.com", "Password123!");
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(anotherReserverToken)))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.message").value(containsString("already reserved")));
         }
@@ -85,7 +92,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("should return 404 for non-existent item")
         void shouldReturn404ForNonExistentItem() throws Exception {
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/nonexistent/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/nonexistent/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isNotFound());
         }
 
@@ -109,8 +117,18 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
                     .get("shareableId").asText();
 
             // Try to reserve on private wishlist
-            mockMvc.perform(post("/api/v1/public/wishlists/" + privateShareableId + "/items/anyitem/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + privateShareableId + "/items/anyitem/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("should reject reservation without authentication")
+        void shouldRejectWithoutAuth() throws Exception {
+            String itemId = createItem("Auth Required Item");
+
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+                    .andExpect(status().isUnauthorized());
         }
     }
 
@@ -124,7 +142,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
             String itemId = createItem("Reserved Item");
 
             // Reserve the item
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk());
 
             // Owner unreserves
@@ -134,7 +153,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
                     .andExpect(jsonPath("$.reserved").value(false));
 
             // Verify item is available again
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].status").value("AVAILABLE"));
         }
@@ -145,7 +165,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
             String itemId = createItem("Protected Item");
 
             // Reserve the item
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk());
 
             // Another user tries to unreserve
@@ -176,7 +197,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
             String itemId = createItem("Re-reservable Item");
 
             // First reserve
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk());
 
             // Owner unreserves
@@ -185,7 +207,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
                     .andExpect(status().isOk());
 
             // Reserve again
-            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
+            mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                            .header("Authorization", bearerToken(reserverToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.reserved").value(true));
         }

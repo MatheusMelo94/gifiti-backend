@@ -2,6 +2,7 @@ package com.gifiti.api.exception;
 
 import com.gifiti.api.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.dao.DuplicateKeyException;
@@ -68,6 +69,31 @@ public class GlobalExceptionHandler {
                 .map(error -> ErrorResponse.FieldError.builder()
                         .field(error.getField())
                         .message(error.getDefaultMessage())
+                        .build())
+                .collect(Collectors.toList());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message("Validation failed")
+                .path(request.getRequestURI())
+                .correlationId(MDC.get("correlationId"))
+                .details(fieldErrors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(
+            ConstraintViolationException ex, HttpServletRequest request) {
+        log.warn("Constraint violation: {}", ex.getMessage());
+
+        List<ErrorResponse.FieldError> fieldErrors = ex.getConstraintViolations().stream()
+                .map(violation -> ErrorResponse.FieldError.builder()
+                        .field(violation.getPropertyPath().toString())
+                        .message(violation.getMessage())
                         .build())
                 .collect(Collectors.toList());
 

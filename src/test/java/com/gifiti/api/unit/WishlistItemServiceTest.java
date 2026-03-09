@@ -2,6 +2,7 @@ package com.gifiti.api.unit;
 
 import com.gifiti.api.dto.request.CreateItemRequest;
 import com.gifiti.api.dto.request.UpdateItemRequest;
+import com.gifiti.api.dto.response.ItemListResponse;
 import com.gifiti.api.dto.response.WishlistItemResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
@@ -21,8 +22,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -250,6 +256,66 @@ class WishlistItemServiceTest {
                     .isInstanceOf(AccessDeniedException.class);
 
             verify(wishlistItemRepository, never()).delete(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("findAllByWishlistId(paginated)")
+    class PaginatedFindAllTests {
+
+        @Test
+        @DisplayName("should return paginated items")
+        void shouldReturnPaginatedItems() {
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .build();
+
+            WishlistItem item = WishlistItem.builder()
+                    .id(ITEM_ID)
+                    .wishlistId(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .name("Test Item")
+                    .build();
+
+            WishlistItemResponse response = WishlistItemResponse.builder()
+                    .id(ITEM_ID)
+                    .name("Test Item")
+                    .build();
+
+            Page<WishlistItem> page = new PageImpl<>(List.of(item),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 1);
+
+            when(wishlistService.findAndVerifyOwnership(WISHLIST_ID, USER_ID)).thenReturn(wishlist);
+            when(wishlistItemRepository.findByWishlistId(eq(WISHLIST_ID), any(Pageable.class))).thenReturn(page);
+            when(wishlistItemMapper.toResponse(item)).thenReturn(response);
+
+            ItemListResponse result = wishlistItemService.findAllByWishlistId(WISHLIST_ID, USER_ID, 0, 20);
+
+            assertThat(result.getItems()).hasSize(1);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.getTotalPages()).isEqualTo(1);
+            assertThat(result.getCurrentPage()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("should return empty page when no items")
+        void shouldReturnEmptyPage() {
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .build();
+
+            Page<WishlistItem> emptyPage = new PageImpl<>(Collections.emptyList(),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 0);
+
+            when(wishlistService.findAndVerifyOwnership(WISHLIST_ID, USER_ID)).thenReturn(wishlist);
+            when(wishlistItemRepository.findByWishlistId(eq(WISHLIST_ID), any(Pageable.class))).thenReturn(emptyPage);
+
+            ItemListResponse result = wishlistItemService.findAllByWishlistId(WISHLIST_ID, USER_ID, 0, 20);
+
+            assertThat(result.getItems()).isEmpty();
+            assertThat(result.getTotalElements()).isZero();
         }
     }
 }

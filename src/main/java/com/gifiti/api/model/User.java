@@ -4,6 +4,7 @@ import com.gifiti.api.model.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,6 +40,20 @@ public class User {
 
     @NotBlank(message = "Password is required")
     private String password;
+
+    @Size(max = 50, message = "Display name must not exceed 50 characters")
+    private String displayName;
+
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    @Indexed(unique = true, sparse = true)
+    private String verificationToken;
+    private Instant verificationTokenExpiry;
+
+    @Indexed(unique = true, sparse = true)
+    private String passwordResetToken;
+    private Instant passwordResetTokenExpiry;
 
     @NotNull
     @Builder.Default

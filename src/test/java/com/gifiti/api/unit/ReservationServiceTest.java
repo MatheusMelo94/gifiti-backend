@@ -53,6 +53,8 @@ class ReservationServiceTest {
         void shouldReserveAvailableItem() {
             WishlistItem item = WishlistItem.builder()
                     .id(ITEM_ID)
+                    .quantity(1)
+                    .reservedQuantity(0)
                     .status(ItemStatus.AVAILABLE)
                     .build();
 
@@ -69,10 +71,12 @@ class ReservationServiceTest {
         }
 
         @Test
-        @DisplayName("should throw ConflictException for already reserved item (fast fail)")
+        @DisplayName("should throw ConflictException for fully reserved item")
         void shouldThrowConflictForAlreadyReservedItem() {
             WishlistItem item = WishlistItem.builder()
                     .id(ITEM_ID)
+                    .quantity(1)
+                    .reservedQuantity(1)
                     .status(ItemStatus.RESERVED)
                     .build();
 
@@ -80,7 +84,7 @@ class ReservationServiceTest {
 
             assertThatThrownBy(() -> reservationService.reserve(ITEM_ID, RESERVER_ID))
                     .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("already reserved");
+                    .hasMessageContaining("fully reserved");
 
             verify(reservationRepository, never()).save(any());
         }
@@ -90,6 +94,8 @@ class ReservationServiceTest {
         void shouldThrowConflictOnConcurrentReservation() {
             WishlistItem item = WishlistItem.builder()
                     .id(ITEM_ID)
+                    .quantity(1)
+                    .reservedQuantity(0)
                     .status(ItemStatus.AVAILABLE)
                     .build();
 

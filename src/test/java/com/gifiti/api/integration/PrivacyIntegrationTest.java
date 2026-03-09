@@ -21,12 +21,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PrivacyIntegrationTest extends BaseIntegrationTest {
 
     private String ownerToken;
+    private String reserverToken;
     private String wishlistId;
     private String shareableId;
 
     @BeforeEach
     void setup() throws Exception {
         ownerToken = createUserAndGetToken("privacyowner@example.com", "Password123!");
+        reserverToken = createUserAndGetToken("privacyreserver@example.com", "Password123!");
 
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()
                 .title("Privacy Test Wishlist")
@@ -48,13 +50,9 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("PRIVACY: Owner's item list should NEVER include reserverId")
     void ownerItemListShouldNeverIncludeReserverId() throws Exception {
-        // Create and reserve an item
         String itemId = createItem("Secret Gift");
+        reserveItem(itemId);
 
-        mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
-                .andExpect(status().isOk());
-
-        // Owner fetches their items - reserverId must NOT be present
         mockMvc.perform(get("/api/v1/wishlists/" + wishlistId + "/items")
                         .header("Authorization", bearerToken(ownerToken)))
                 .andExpect(status().isOk())
@@ -66,11 +64,8 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
     @DisplayName("PRIVACY: Owner's single item GET should NEVER include reserverId")
     void ownerSingleItemShouldNeverIncludeReserverId() throws Exception {
         String itemId = createItem("Another Secret Gift");
+        reserveItem(itemId);
 
-        mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
-                .andExpect(status().isOk());
-
-        // Owner fetches single item - reserverId must NOT be present
         mockMvc.perform(get("/api/v1/wishlists/" + wishlistId + "/items/" + itemId)
                         .header("Authorization", bearerToken(ownerToken)))
                 .andExpect(status().isOk())
@@ -82,11 +77,8 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
     @DisplayName("PRIVACY: Public wishlist view should NEVER include reserverId")
     void publicWishlistViewShouldNeverIncludeReserverId() throws Exception {
         String itemId = createItem("Public View Item");
+        reserveItem(itemId);
 
-        mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
-                .andExpect(status().isOk());
-
-        // Public view - reserverId must NOT be present
         mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].reserverId").doesNotExist())
@@ -97,35 +89,26 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
     @DisplayName("PRIVACY: Owner should only see status, not who reserved")
     void ownerShouldOnlySeeStatusNotWhoReserved() throws Exception {
         String itemId = createItem("Mystery Gift");
+        reserveItem(itemId);
 
-        // Reserve as anonymous user
-        mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve"))
-                .andExpect(status().isOk());
-
-        // Owner can see it's reserved but not who reserved it
         MvcResult result = mockMvc.perform(get("/api/v1/wishlists/" + wishlistId + "/items/" + itemId)
                         .header("Authorization", bearerToken(ownerToken)))
                 .andExpect(status().isOk())
                 .andReturn();
 
         String response = result.getResponse().getContentAsString();
-
-        // Verify the response does NOT contain any reserver-related fields
         org.assertj.core.api.Assertions.assertThat(response)
                 .doesNotContain("reserverId")
-                .doesNotContain("reserver")
-                .doesNotContain("session:")
-                .doesNotContain("ip:");
+                .doesNotContain("privacyreserver");
     }
 
     @Test
     @DisplayName("PRIVACY: Wishlist response should not include ownerUserId")
     void wishlistResponseShouldNotIncludeOwnerUserId() throws Exception {
-        // Public view should not expose internal IDs
         mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ownerUserId").doesNotExist())
-                .andExpect(jsonPath("$.id").doesNotExist()); // Internal ID also hidden
+                .andExpect(jsonPath("$.id").doesNotExist());
     }
 
     @Test
@@ -153,5 +136,11 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
 
         return objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("id").asText();
+    }
+
+    private void reserveItem(String itemId) throws Exception {
+        mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
+                        .header("Authorization", bearerToken(reserverToken)))
+                .andExpect(status().isOk());
     }
 }

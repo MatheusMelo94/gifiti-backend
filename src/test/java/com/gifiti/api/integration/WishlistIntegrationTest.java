@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.LocalDate;
+
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -232,6 +234,85 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
             mockMvc.perform(delete("/api/v1/wishlists/" + wishlistId)
                             .header("Authorization", bearerToken(otherUserToken)))
                     .andExpect(status().isForbidden());
+        }
+    }
+
+    @Nested
+    @DisplayName("Event Date (Phase 1C)")
+    class EventDateTests {
+
+        @Test
+        @DisplayName("should create wishlist with eventDate")
+        void shouldCreateWishlistWithEventDate() throws Exception {
+            CreateWishlistRequest request = CreateWishlistRequest.builder()
+                    .title("Birthday 2026")
+                    .eventDate(LocalDate.of(2026, 6, 15))
+                    .visibility(Visibility.PUBLIC)
+                    .build();
+
+            mockMvc.perform(post("/api/v1/wishlists")
+                            .header("Authorization", bearerToken(userToken))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.eventDate").value("2026-06-15"));
+        }
+
+        @Test
+        @DisplayName("should update eventDate")
+        void shouldUpdateEventDate() throws Exception {
+            String wishlistId = createWishlist("Date Test");
+
+            UpdateWishlistRequest request = UpdateWishlistRequest.builder()
+                    .eventDate(LocalDate.of(2026, 12, 25))
+                    .build();
+
+            mockMvc.perform(put("/api/v1/wishlists/" + wishlistId)
+                            .header("Authorization", bearerToken(userToken))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.eventDate").value("2026-12-25"));
+        }
+
+        @Test
+        @DisplayName("should show eventDate in public view")
+        void shouldShowEventDateInPublicView() throws Exception {
+            CreateWishlistRequest request = CreateWishlistRequest.builder()
+                    .title("Public Event")
+                    .eventDate(LocalDate.of(2026, 6, 15))
+                    .visibility(Visibility.PUBLIC)
+                    .build();
+
+            MvcResult result = mockMvc.perform(post("/api/v1/wishlists")
+                            .header("Authorization", bearerToken(userToken))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+
+            String shareableId = objectMapper.readTree(result.getResponse().getContentAsString())
+                    .get("shareableId").asText();
+
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.eventDate").value("2026-06-15"))
+                    .andExpect(jsonPath("$.ownerDisplayName").exists());
+        }
+
+        @Test
+        @DisplayName("should accept null eventDate")
+        void shouldAcceptNullEventDate() throws Exception {
+            CreateWishlistRequest request = CreateWishlistRequest.builder()
+                    .title("No Date Wishlist")
+                    .build();
+
+            mockMvc.perform(post("/api/v1/wishlists")
+                            .header("Authorization", bearerToken(userToken))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.eventDate").doesNotExist());
         }
     }
 

@@ -2,12 +2,14 @@ package com.gifiti.api.unit;
 
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
+import com.gifiti.api.dto.response.WishlistListResponse;
 import com.gifiti.api.dto.response.WishlistResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.mapper.WishlistMapper;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.enums.Visibility;
+import com.gifiti.api.model.enums.WishlistCategory;
 import com.gifiti.api.repository.ReservationRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
@@ -20,8 +22,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -241,6 +247,153 @@ class WishlistServiceTest {
 
             assertThatThrownBy(() -> wishlistService.findByShareableId("invalid"))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("findAllByOwner(paginated)")
+    class PaginatedFindAllByOwnerTests {
+
+        @Test
+        @DisplayName("should return paginated wishlists")
+        void shouldReturnPaginatedWishlists() {
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .title("Test Wishlist")
+                    .build();
+
+            WishlistResponse wishlistResponse = WishlistResponse.builder()
+                    .id(WISHLIST_ID)
+                    .title("Test Wishlist")
+                    .itemCount(0)
+                    .build();
+
+            Page<Wishlist> page = new PageImpl<>(List.of(wishlist),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 1);
+
+            when(wishlistRepository.findByOwnerUserId(eq(USER_ID), any(Pageable.class))).thenReturn(page);
+            when(wishlistItemRepository.findByWishlistId(WISHLIST_ID)).thenReturn(Collections.emptyList());
+            when(wishlistMapper.toResponse(wishlist, 0)).thenReturn(wishlistResponse);
+
+            WishlistListResponse result = wishlistService.findAllByOwner(USER_ID, 0, 20);
+
+            assertThat(result.getWishlists()).hasSize(1);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+            assertThat(result.getTotalPages()).isEqualTo(1);
+            assertThat(result.getCurrentPage()).isEqualTo(0);
+            assertThat(result.getSize()).isEqualTo(20);
+        }
+
+        @Test
+        @DisplayName("should return empty page when no wishlists")
+        void shouldReturnEmptyPage() {
+            Page<Wishlist> emptyPage = new PageImpl<>(Collections.emptyList(),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 0);
+
+            when(wishlistRepository.findByOwnerUserId(eq(USER_ID), any(Pageable.class))).thenReturn(emptyPage);
+
+            WishlistListResponse result = wishlistService.findAllByOwner(USER_ID, 0, 20);
+
+            assertThat(result.getWishlists()).isEmpty();
+            assertThat(result.getTotalElements()).isZero();
+        }
+    }
+
+    @Nested
+    @DisplayName("findAllByOwner(with category filter)")
+    class CategoryFilterTests {
+
+        @Test
+        @DisplayName("should filter wishlists by category")
+        void shouldFilterByCategory() {
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .title("Birthday List")
+                    .category(WishlistCategory.BIRTHDAY)
+                    .build();
+
+            WishlistResponse wishlistResponse = WishlistResponse.builder()
+                    .id(WISHLIST_ID)
+                    .title("Birthday List")
+                    .category(WishlistCategory.BIRTHDAY)
+                    .itemCount(0)
+                    .build();
+
+            Page<Wishlist> page = new PageImpl<>(List.of(wishlist),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 1);
+
+            when(wishlistRepository.findByOwnerUserIdAndCategory(eq(USER_ID), eq(WishlistCategory.BIRTHDAY), any(Pageable.class))).thenReturn(page);
+            when(wishlistItemRepository.findByWishlistId(WISHLIST_ID)).thenReturn(Collections.emptyList());
+            when(wishlistMapper.toResponse(wishlist, 0)).thenReturn(wishlistResponse);
+
+            WishlistListResponse result = wishlistService.findAllByOwner(USER_ID, WishlistCategory.BIRTHDAY, 0, 20);
+
+            assertThat(result.getWishlists()).hasSize(1);
+            assertThat(result.getWishlists().get(0).getCategory()).isEqualTo(WishlistCategory.BIRTHDAY);
+            verify(wishlistRepository).findByOwnerUserIdAndCategory(eq(USER_ID), eq(WishlistCategory.BIRTHDAY), any(Pageable.class));
+            verify(wishlistRepository, never()).findByOwnerUserId(eq(USER_ID), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("should return all wishlists when category is null")
+        void shouldReturnAllWhenCategoryNull() {
+            Page<Wishlist> emptyPage = new PageImpl<>(Collections.emptyList(),
+                    org.springframework.data.domain.PageRequest.of(0, 20), 0);
+
+            when(wishlistRepository.findByOwnerUserId(eq(USER_ID), any(Pageable.class))).thenReturn(emptyPage);
+
+            wishlistService.findAllByOwner(USER_ID, null, 0, 20);
+
+            verify(wishlistRepository).findByOwnerUserId(eq(USER_ID), any(Pageable.class));
+            verify(wishlistRepository, never()).findByOwnerUserIdAndCategory(any(), any(), any(Pageable.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("rotateShareableId()")
+    class RotateShareableIdTests {
+
+        @Test
+        @DisplayName("should generate new shareable ID")
+        void shouldGenerateNewShareableId() {
+            String oldShareableId = "old-nano-id";
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .shareableId(oldShareableId)
+                    .build();
+
+            WishlistResponse response = WishlistResponse.builder()
+                    .id(WISHLIST_ID)
+                    .shareableId("new-nano-id")
+                    .build();
+
+            when(wishlistRepository.findById(WISHLIST_ID)).thenReturn(Optional.of(wishlist));
+            when(wishlistRepository.save(any(Wishlist.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(wishlistItemRepository.findByWishlistId(WISHLIST_ID)).thenReturn(Collections.emptyList());
+            when(wishlistMapper.toResponse(any(Wishlist.class), eq(0))).thenReturn(response);
+
+            wishlistService.rotateShareableId(WISHLIST_ID, USER_ID);
+
+            verify(wishlistRepository).save(any(Wishlist.class));
+            // The shareableId should have been changed from the old one
+            assertThat(wishlist.getShareableId()).isNotEqualTo(oldShareableId);
+        }
+
+        @Test
+        @DisplayName("should throw AccessDeniedException for non-owner")
+        void shouldThrowAccessDeniedForNonOwner() {
+            Wishlist wishlist = Wishlist.builder()
+                    .id(WISHLIST_ID)
+                    .ownerUserId(USER_ID)
+                    .build();
+
+            when(wishlistRepository.findById(WISHLIST_ID)).thenReturn(Optional.of(wishlist));
+
+            assertThatThrownBy(() -> wishlistService.rotateShareableId(WISHLIST_ID, OTHER_USER_ID))
+                    .isInstanceOf(AccessDeniedException.class);
         }
     }
 }
