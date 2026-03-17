@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -53,6 +54,7 @@ public class SecurityConfig {
      */
     @Bean
     @Order(0)
+    @ConditionalOnProperty(name = "app.swagger.enabled", havingValue = "true")
     public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
@@ -91,7 +93,8 @@ public class SecurityConfig {
                         // HSTS - enforce HTTPS (1 year, include subdomains)
                         headers.httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
-                                .maxAgeInSeconds(31536000));
+                                .maxAgeInSeconds(31536000)
+                                .preload(true));
                         // Content Security Policy - restrict resource loading
                         headers.contentSecurityPolicy(csp -> csp
                                 .policyDirectives(
@@ -106,7 +109,8 @@ public class SecurityConfig {
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
                         // Permissions-Policy - restrict browser features (M-04)
                         headers.permissionsPolicy(permissions -> permissions
-                                .policy("camera=(), microphone=(), geolocation=(), payment=()"));
+                                .policy("camera=(), microphone=(), geolocation=(), payment=(), " +
+                                        "usb=(), midi=(), gyroscope=(), accelerometer=(), magnetometer=()"));
                         // X-Permitted-Cross-Domain-Policies - block Adobe Flash/PDF cross-domain
                         headers.addHeaderWriter(new StaticHeadersWriter(
                                 "X-Permitted-Cross-Domain-Policies", "none"));
@@ -130,7 +134,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        configuration.setAllowedOrigins(
+                Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Authorization", "Cookie"));
         configuration.setAllowCredentials(true);

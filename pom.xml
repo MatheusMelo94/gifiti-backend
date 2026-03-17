@@ -164,6 +164,15 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+            <!-- OWASP Dependency-Check for supply chain vulnerability scanning -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>10.0.4</version>
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

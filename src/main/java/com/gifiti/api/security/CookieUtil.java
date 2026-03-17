@@ -1,12 +1,14 @@
 package com.gifiti.api.security;
 
-import jakarta.servlet.http.Cookie;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class CookieUtil {
 
@@ -27,6 +29,17 @@ public class CookieUtil {
 
     @Value("${app.cookie.domain:}")
     private String domain;
+
+    @PostConstruct
+    void validateCookieConfig() {
+        if (!secure) {
+            log.warn("SECURITY_WARNING: Cookie Secure flag is OFF (APP_COOKIE_SECURE=false). " +
+                     "Tokens will be sent over plain HTTP. Set APP_COOKIE_SECURE=true in production.");
+        }
+        if ("None".equalsIgnoreCase(sameSite) && !secure) {
+            log.error("SECURITY_CRITICAL: SameSite=None requires Secure=true. Cookies will be rejected by browsers.");
+        }
+    }
 
     public void addAccessTokenCookie(HttpServletResponse response, String token) {
         addCookie(response, ACCESS_TOKEN_COOKIE, token, "/", (int) (accessTokenExpirationMs / 1000));

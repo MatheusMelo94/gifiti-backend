@@ -2,9 +2,8 @@ package com.gifiti.api.controller;
 
 import com.gifiti.api.dto.response.GifterReservationListResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
-import com.gifiti.api.model.User;
-import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.service.GifterService;
+import com.gifiti.api.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MyReservationsController {
 
     private final GifterService gifterService;
-    private final UserRepository userRepository;
+    private final UserService userService;
 
     @Operation(summary = "List all your reservations across all wishlists")
     @GetMapping
@@ -52,8 +51,6 @@ public class MyReservationsController {
     }
 
     private String resolveUserId(String email) {
-        return userRepository.findByEmail(email)
-                .map(User::getId)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        return userService.getUserIdByEmail(email);
     }
 }

@@ -72,30 +72,31 @@ public class AuthService {
      * @throws IllegalArgumentException if password is weak
      */
     public RegisterResponse register(RegisterRequest request) {
-        log.info("Registering new user with email: {}", request.getEmail());
+        String email = normalizeEmail(request.getEmail());
+        log.info("Registering new user with email: {}", email);
 
         // M-05 security fix: Enhanced password validation
-        passwordValidationService.validate(request.getPassword(), request.getEmail());
+        passwordValidationService.validate(request.getPassword(), email);
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            log.warn("Registration failed: email already exists: {}", request.getEmail());
+        if (userRepository.existsByEmail(email)) {
+            log.warn("Registration failed: email already exists: {}", email);
             throw new ConflictException("Email already registered");
         }
 
         // Derive displayName if not provided
         String displayName = request.getDisplayName();
         if (displayName == null || displayName.isBlank()) {
-            displayName = request.getEmail().split("@")[0];
+            displayName = email.split("@")[0];
         }
 
         String verificationToken = UUID.randomUUID().toString();
 
         User user = User.builder()
-                .email(request.getEmail())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .displayName(displayName)
                 .roles(Set.of(Role.USER))
-                .verificationToken(verificationToken)
+                .verificationToken(hashToken(verificationToken))
                 .verificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS))
                 .build();
 
@@ -125,32 +126,33 @@ public class AuthService {
      * @throws UnauthorizedException if credentials are invalid or account is locked
      */
     public AuthResponse login(LoginRequest request) {
-        log.info("Login attempt for email: {}", request.getEmail());
+        String email = normalizeEmail(request.getEmail());
+        log.info("Login attempt for email: {}", email);
 
         // Check if account is locked (H-02 security fix)
-        if (accountLockoutService.isLocked(request.getEmail())) {
-            log.warn("SECURITY_EVENT: Login attempt on locked account: {}", request.getEmail());
+        if (accountLockoutService.isLocked(email)) {
+            log.warn("SECURITY_EVENT: Login attempt on locked account: {}", email);
             throw new UnauthorizedException("Account temporarily locked due to multiple failed attempts. Try again later.");
         }
 
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
+                            email,
                             request.getPassword()
                     )
             );
 
             // Clear failed attempts on successful login
-            accountLockoutService.recordSuccessfulLogin(request.getEmail());
+            accountLockoutService.recordSuccessfulLogin(email);
 
-            User user = userRepository.findByEmail(request.getEmail())
+            User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
             String accessToken = jwtTokenProvider.generateAccessToken(authentication);
             String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
 
-            log.info("Login successful for email: {}", request.getEmail());
+            log.info("Login successful for email: {}", email);
 
             return AuthResponse.builder()
                     .user(AuthResponse.UserInfo.builder()
@@ -166,8 +168,8 @@ public class AuthService {
 
         } catch (BadCredentialsException e) {
             // Record failed attempt for lockout tracking (H-02 security fix)
-            accountLockoutService.recordFailedAttempt(request.getEmail());
-            log.warn("SECURITY_EVENT: Login failed for email: {} - invalid credentials", request.getEmail());
+            accountLockoutService.recordFailedAttempt(email);
+            log.warn("SECURITY_EVENT: Login failed for email: {} - invalid credentials", email);
             throw new UnauthorizedException("Invalid email or password");
         }
     }
@@ -191,26 +193,31 @@ public class AuthService {
     public AuthResponse refreshFromToken(String refreshToken) {
         log.debug("Processing token refresh request");
 
-        // Validate the refresh token
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             log.warn("SECURITY_EVENT: Invalid refresh token presented");
             throw new UnauthorizedException("Invalid or expired refresh token");
         }
 
-        // Extract username from refresh token
+        // Check if this refresh token has been blacklisted (replay detection)
+        if (isTokenBlacklisted(refreshToken)) {
+            log.warn("SECURITY_EVENT: Blacklisted refresh token reuse detected");
+            throw new UnauthorizedException("Invalid or expired refresh token");
+        }
+
         String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
 
-        // Verify user still exists
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> {
                     log.warn("SECURITY_EVENT: Refresh token for non-existent user: {}", username);
                     return new UnauthorizedException("Invalid refresh token");
                 });
 
-        // Generate new access token only (don't rotate refresh token)
+        // Rotate: blacklist old token FIRST to close replay window, then issue new tokens
+        blacklistToken(refreshToken);
         String newAccessToken = jwtTokenProvider.generateAccessToken(username);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(username);
 
-        log.info("Token refreshed successfully for user: {}", username);
+        log.info("Token refreshed and rotated for user: {}", username);
 
         return AuthResponse.builder()
                 .user(AuthResponse.UserInfo.builder()
@@ -220,13 +227,13 @@ public class AuthService {
                         .roles(user.getRoles())
                         .build())
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken) // Return same refresh token
+                .refreshToken(newRefreshToken)
                 .expiresIn(jwtTokenProvider.getAccessTokenExpirationInSeconds())
                 .build();
     }
 
     public MessageResponse verifyEmail(String token) {
-        User user = userRepository.findByVerificationToken(token)
+        User user = userRepository.findByVerificationToken(hashToken(token))
                 .orElseThrow(() -> new UnauthorizedException("Invalid verification token"));
 
         if (user.getVerificationTokenExpiry().isBefore(Instant.now())) {
@@ -242,7 +249,8 @@ public class AuthService {
         return MessageResponse.builder().message("Email verified successfully").build();
     }
 
-    public MessageResponse resendVerification(String email) {
+    public MessageResponse resendVerification(String rawEmail) {
+        String email = normalizeEmail(rawEmail);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
 
@@ -251,7 +259,7 @@ public class AuthService {
         }
 
         String token = UUID.randomUUID().toString();
-        user.setVerificationToken(token);
+        user.setVerificationToken(hashToken(token));
         user.setVerificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS));
         userRepository.save(user);
 
@@ -261,7 +269,8 @@ public class AuthService {
         return MessageResponse.builder().message("Verification email sent").build();
     }
 
-    public MessageResponse forgotPassword(String email) {
+    public MessageResponse forgotPassword(String rawEmail) {
+        String email = normalizeEmail(rawEmail);
         String message = "If an account exists with this email, a password reset link has been sent.";
 
         Optional<User> optionalUser = userRepository.findByEmail(email);
@@ -272,7 +281,7 @@ public class AuthService {
 
         User user = optionalUser.get();
         String token = UUID.randomUUID().toString();
-        user.setPasswordResetToken(token);
+        user.setPasswordResetToken(hashToken(token));
         user.setPasswordResetTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS));
         userRepository.save(user);
 
@@ -283,7 +292,7 @@ public class AuthService {
     }
 
     public MessageResponse resetPassword(String token, String newPassword) {
-        User user = userRepository.findByPasswordResetToken(token)
+        User user = userRepository.findByPasswordResetToken(hashToken(token))
                 .orElseThrow(() -> new UnauthorizedException("Invalid password reset token"));
 
         if (user.getPasswordResetTokenExpiry().isBefore(Instant.now())) {
@@ -352,6 +361,10 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.toLowerCase().trim();
     }
 
     private void sendPasswordResetEmail(String email, String token) {

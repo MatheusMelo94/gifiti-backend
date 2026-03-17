@@ -2,6 +2,7 @@ package com.gifiti.api.dto.request;
 
 import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.model.enums.WishlistCategory;
+import com.gifiti.api.validation.NoHtml;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -23,10 +24,12 @@ import java.time.LocalDate;
 public class UpdateWishlistRequest {
 
     @Size(max = 100, message = "Title must not exceed 100 characters")
+    @NoHtml
     @Schema(description = "New title", example = "Christmas 2026")
     private String title;
 
     @Size(max = 500, message = "Description must not exceed 500 characters")
+    @NoHtml
     @Schema(description = "New description", example = "Updated gift ideas")
     private String description;
 

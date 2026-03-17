@@ -3,8 +3,6 @@ package com.gifiti.api.controller;
 import com.gifiti.api.dto.response.ErrorResponse;
 import com.gifiti.api.dto.response.PublicWishlistResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
-import com.gifiti.api.model.User;
-import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.service.PublicWishlistService;
 import com.gifiti.api.service.ReservationService;
 import com.gifiti.api.service.UserService;
@@ -37,7 +35,6 @@ public class PublicWishlistController {
 
     private final PublicWishlistService publicWishlistService;
     private final ReservationService reservationService;
-    private final UserRepository userRepository;
     private final UserService userService;
 
     /**
@@ -90,9 +87,7 @@ public class PublicWishlistController {
         publicWishlistService.findByShareableId(shareableId);
 
         // Resolve user ID from authenticated user
-        String userId = userRepository.findByEmail(authentication.getName())
-                .map(User::getId)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        String userId = userService.getUserIdByEmail(authentication.getName());
 
         ReservationResponse response = reservationService.reserve(itemId, userId);
         return ResponseEntity.ok(response);

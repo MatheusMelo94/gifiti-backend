@@ -5,13 +5,17 @@ import com.gifiti.api.dto.response.GifterReservationResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
 import com.gifiti.api.dto.response.SharedWishlistListResponse;
 import com.gifiti.api.dto.response.SharedWishlistResponse;
+import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.Reservation;
+import com.gifiti.api.model.SavedWishlist;
 import com.gifiti.api.model.User;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
 import com.gifiti.api.model.enums.ItemStatus;
+import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.repository.ReservationRepository;
+import com.gifiti.api.repository.SavedWishlistRepository;
 import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
@@ -20,8 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +44,7 @@ public class GifterService {
     private final WishlistItemRepository wishlistItemRepository;
     private final WishlistRepository wishlistRepository;
     private final UserRepository userRepository;
+    private final SavedWishlistRepository savedWishlistRepository;
     private final ReservationService reservationService;
 
     /**
@@ -81,41 +89,88 @@ public class GifterService {
     }
 
     /**
-     * List wishlists where the gifter has at least one reservation.
-     * Groups by wishlist and includes reservation count per wishlist.
+     * Save a public wishlist to the user's "Shared with me" list.
+     * Idempotent — saving an already-saved wishlist returns success.
+     */
+    public MessageResponse saveSharedWishlist(String shareableId, String userId) {
+        log.debug("User {} saving shared wishlist {}", userId, shareableId);
+
+        Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+
+        if (wishlist.getVisibility() != Visibility.PUBLIC) {
+            throw new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
+        }
+
+        if (wishlist.getOwnerUserId().equals(userId)) {
+            throw new org.springframework.security.access.AccessDeniedException("Cannot save your own wishlist");
+        }
+
+        if (!savedWishlistRepository.existsByUserIdAndWishlistId(userId, wishlist.getId())) {
+            savedWishlistRepository.save(SavedWishlist.builder()
+                    .userId(userId)
+                    .wishlistId(wishlist.getId())
+                    .build());
+            log.info("User {} saved wishlist {}", userId, shareableId);
+        }
+
+        return MessageResponse.builder()
+                .message("Wishlist saved")
+                .build();
+    }
+
+    /**
+     * List wishlists shared with the gifter.
+     * Merges wishlists with reservations AND explicitly saved wishlists.
      */
     public SharedWishlistListResponse listSharedWishlists(String gifterId) {
         log.debug("Finding shared wishlists for gifter: {}", gifterId);
 
+        // 1. Wishlists from reservations
         List<Reservation> reservations = reservationRepository.findByReserverId(gifterId);
-        if (reservations.isEmpty()) {
+
+        Map<String, WishlistItem> itemsById = Map.of();
+        Map<String, Long> reservationCountByWishlistId = Map.of();
+
+        if (!reservations.isEmpty()) {
+            List<String> itemIds = reservations.stream()
+                    .map(Reservation::getItemId)
+                    .toList();
+
+            itemsById = wishlistItemRepository.findAllById(itemIds).stream()
+                    .collect(Collectors.toMap(WishlistItem::getId, item -> item));
+
+            Map<String, WishlistItem> finalItemsById = itemsById;
+            reservationCountByWishlistId = reservations.stream()
+                    .map(r -> finalItemsById.get(r.getItemId()))
+                    .filter(item -> item != null)
+                    .collect(Collectors.groupingBy(WishlistItem::getWishlistId, Collectors.counting()));
+        }
+
+        // 2. Explicitly saved wishlists
+        List<SavedWishlist> savedWishlists = savedWishlistRepository.findByUserId(gifterId);
+        Set<String> savedWishlistIds = savedWishlists.stream()
+                .map(SavedWishlist::getWishlistId)
+                .collect(Collectors.toSet());
+
+        // 3. Merge both sets of wishlist IDs
+        Set<String> allWishlistIds = new HashSet<>(reservationCountByWishlistId.keySet());
+        allWishlistIds.addAll(savedWishlistIds);
+
+        if (allWishlistIds.isEmpty()) {
             return SharedWishlistListResponse.builder()
                     .wishlists(List.of())
                     .totalCount(0)
                     .build();
         }
 
-        // Reservation → Item → Wishlist
-        List<String> itemIds = reservations.stream()
-                .map(Reservation::getItemId)
-                .toList();
+        List<Wishlist> wishlists = wishlistRepository.findByIdIn(new ArrayList<>(allWishlistIds));
 
-        Map<String, WishlistItem> itemsById = wishlistItemRepository.findAllById(itemIds).stream()
-                .collect(Collectors.toMap(WishlistItem::getId, item -> item));
-
-        // Count reservations per wishlist
-        Map<String, Long> reservationCountByWishlistId = reservations.stream()
-                .map(r -> itemsById.get(r.getItemId()))
-                .filter(item -> item != null)
-                .collect(Collectors.groupingBy(WishlistItem::getWishlistId, Collectors.counting()));
-
-        List<String> wishlistIds = reservationCountByWishlistId.keySet().stream().toList();
-        List<Wishlist> wishlists = wishlistRepository.findByIdIn(wishlistIds);
-
+        Map<String, Long> finalReservationCount = reservationCountByWishlistId;
         List<SharedWishlistResponse> responses = wishlists.stream()
                 .map(wishlist -> {
                     int itemCount = wishlistItemRepository.findByWishlistId(wishlist.getId()).size();
-                    int myReservationCount = reservationCountByWishlistId
+                    int myReservationCount = finalReservationCount
                             .getOrDefault(wishlist.getId(), 0L).intValue();
 
                     return SharedWishlistResponse.builder()
@@ -148,19 +203,17 @@ public class GifterService {
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
 
+        // Remove saved entry if it exists
+        savedWishlistRepository.deleteByUserIdAndWishlistId(gifterId, wishlist.getId());
+
+        // Cancel reservations on this wishlist
         List<WishlistItem> items = wishlistItemRepository.findByWishlistId(wishlist.getId());
         List<String> itemIds = items.stream().map(WishlistItem::getId).toList();
 
-        // Find this gifter's reservations on these items
         List<Reservation> reservations = reservationRepository.findByReserverId(gifterId).stream()
                 .filter(r -> itemIds.contains(r.getItemId()))
                 .toList();
 
-        if (reservations.isEmpty()) {
-            throw new ResourceNotFoundException("Reservation", "shareableId", shareableId);
-        }
-
-        // Cancel each reservation and update item quantities
         for (Reservation reservation : reservations) {
             reservationRepository.delete(reservation);
 

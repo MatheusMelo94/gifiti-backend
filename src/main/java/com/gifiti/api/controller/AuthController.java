@@ -144,6 +144,9 @@ public class AuthController {
     @PostMapping("/resend-verification")
     public ResponseEntity<MessageResponse> resendVerification(
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         log.debug("Resend verification request for: {}", userDetails.getUsername());
         MessageResponse response = authService.resendVerification(userDetails.getUsername());
         return ResponseEntity.ok(response);

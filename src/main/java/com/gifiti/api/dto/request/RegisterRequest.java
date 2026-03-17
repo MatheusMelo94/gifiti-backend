@@ -1,5 +1,6 @@
 package com.gifiti.api.dto.request;
 
+import com.gifiti.api.validation.NoHtml;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -41,6 +42,7 @@ public class RegisterRequest {
     private String password;
 
     @Size(max = 50, message = "Display name must not exceed 50 characters")
+    @NoHtml
     @Schema(description = "Optional display name (derived from email if absent)", example = "Maria Santos")
     private String displayName;
 }

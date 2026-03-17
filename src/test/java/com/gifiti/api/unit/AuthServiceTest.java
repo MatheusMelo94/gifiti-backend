@@ -1,10 +1,14 @@
 package com.gifiti.api.unit;
 
 import com.gifiti.api.dto.request.RegisterRequest;
+import com.gifiti.api.dto.response.AuthResponse;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.dto.response.RegisterResponse;
 import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.User;
+import com.gifiti.api.model.BlacklistedToken;
+import com.gifiti.api.model.enums.Role;
+import com.gifiti.api.repository.BlacklistedTokenRepository;
 import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.security.JwtTokenProvider;
 import com.gifiti.api.service.AccountLockoutService;
@@ -28,8 +32,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +52,8 @@ class AuthServiceTest {
     private PasswordValidationService passwordValidationService;
     @Mock
     private EmailService emailService;
+    @Mock
+    private BlacklistedTokenRepository blacklistedTokenRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -81,7 +86,7 @@ class AuthServiceTest {
             assertThat(response.getMessage()).contains("verify");
 
             // Verify email was sent
-            verify(emailService).send(eq("test@example.com"), eq("Verify your Gifiti account"), any());
+            verify(emailService).send(eq("test@example.com"), eq("Welcome to Gifiti - Please confirm your email"), any());
 
             // Verify user was saved with verification token
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -106,7 +111,7 @@ class AuthServiceTest {
                     .verificationTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS))
                     .build();
 
-            when(userRepository.findByVerificationToken("valid-token")).thenReturn(Optional.of(user));
+            when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenReturn(user);
 
             MessageResponse response = authService.verifyEmail("valid-token");
@@ -119,7 +124,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("should reject invalid token")
         void shouldRejectInvalidToken() {
-            when(userRepository.findByVerificationToken("bad-token")).thenReturn(Optional.empty());
+            when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> authService.verifyEmail("bad-token"))
                     .isInstanceOf(UnauthorizedException.class);
@@ -134,7 +139,7 @@ class AuthServiceTest {
                     .verificationTokenExpiry(Instant.now().minus(1, ChronoUnit.HOURS))
                     .build();
 
-            when(userRepository.findByVerificationToken("expired-token")).thenReturn(Optional.of(user));
+            when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.of(user));
 
             assertThatThrownBy(() -> authService.verifyEmail("expired-token"))
                     .isInstanceOf(UnauthorizedException.class)
@@ -226,7 +231,7 @@ class AuthServiceTest {
                     .passwordResetTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS))
                     .build();
 
-            when(userRepository.findByPasswordResetToken("reset-token")).thenReturn(Optional.of(user));
+            when(userRepository.findByPasswordResetToken(anyString())).thenReturn(Optional.of(user));
             when(passwordEncoder.encode(any())).thenReturn("new-encoded");
             when(userRepository.save(any(User.class))).thenReturn(user);
 
@@ -241,7 +246,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("should reject invalid token")
         void shouldRejectInvalidToken() {
-            when(userRepository.findByPasswordResetToken("bad")).thenReturn(Optional.empty());
+            when(userRepository.findByPasswordResetToken(anyString())).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> authService.resetPassword("bad", "NewSecureP@ss1!"))
                     .isInstanceOf(UnauthorizedException.class);
@@ -256,11 +261,42 @@ class AuthServiceTest {
                     .passwordResetTokenExpiry(Instant.now().minus(1, ChronoUnit.HOURS))
                     .build();
 
-            when(userRepository.findByPasswordResetToken("expired-token")).thenReturn(Optional.of(user));
+            when(userRepository.findByPasswordResetToken(anyString())).thenReturn(Optional.of(user));
 
             assertThatThrownBy(() -> authService.resetPassword("expired-token", "NewSecureP@ss1!"))
                     .isInstanceOf(UnauthorizedException.class)
                     .hasMessageContaining("expired");
+        }
+    }
+
+    @Nested
+    @DisplayName("refreshFromToken()")
+    class RefreshTokenTests {
+
+        @Test
+        @DisplayName("should rotate refresh token on refresh")
+        void shouldRotateRefreshToken() {
+            String oldRefreshToken = "old-refresh-token";
+            User user = User.builder()
+                    .id("user-id")
+                    .email("user@test.com")
+                    .displayName("Test User")
+                    .roles(java.util.Set.of(Role.USER))
+                    .build();
+
+            when(jwtTokenProvider.validateToken(oldRefreshToken)).thenReturn(true);
+            when(jwtTokenProvider.getUsernameFromToken(oldRefreshToken)).thenReturn("user@test.com");
+            when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
+            when(jwtTokenProvider.generateAccessToken("user@test.com")).thenReturn("new-access-token");
+            when(jwtTokenProvider.generateRefreshToken("user@test.com")).thenReturn("new-refresh-token");
+            when(jwtTokenProvider.getAccessTokenExpirationInSeconds()).thenReturn(3600L);
+            when(jwtTokenProvider.getExpirationFromToken(oldRefreshToken)).thenReturn(Instant.now().plusSeconds(3600));
+
+            AuthResponse response = authService.refreshFromToken(oldRefreshToken);
+
+            assertThat(response.getRefreshToken()).isNotEqualTo(oldRefreshToken);
+            assertThat(response.getRefreshToken()).isEqualTo("new-refresh-token");
+            verify(blacklistedTokenRepository).save(any(BlacklistedToken.class));
         }
     }
 }

@@ -3,6 +3,7 @@ package com.gifiti.api.controller;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.ErrorResponse;
+import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.dto.response.SharedWishlistListResponse;
 import com.gifiti.api.dto.response.WishlistListResponse;
 import com.gifiti.api.dto.response.WishlistResponse;
@@ -188,6 +189,23 @@ public class WishlistController {
             @AuthenticationPrincipal UserDetails userDetails) {
         log.debug("Listing shared wishlists for user: {}", userDetails.getUsername());
         SharedWishlistListResponse response = gifterService.listSharedWishlists(getUserId(userDetails));
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Save a shared wishlist to your list",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Wishlist saved"),
+                    @ApiResponse(responseCode = "403", description = "Cannot save your own wishlist"),
+                    @ApiResponse(responseCode = "404", description = "Wishlist not found or not public",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    @PostMapping("/shared-with-me/{shareableId}")
+    public ResponseEntity<MessageResponse> saveSharedWishlist(
+            @PathVariable String shareableId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        log.debug("User {} saving shared wishlist {}", userDetails.getUsername(), shareableId);
+        MessageResponse response = gifterService.saveSharedWishlist(shareableId, getUserId(userDetails));
         return ResponseEntity.ok(response);
     }
 

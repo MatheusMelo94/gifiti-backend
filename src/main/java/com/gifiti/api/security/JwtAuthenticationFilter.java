@@ -111,11 +111,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String getClientIp(HttpServletRequest request) {
+        String remoteAddr = request.getRemoteAddr();
+
+        if (!isTrustedProxy(remoteAddr)) {
+            return remoteAddr;
+        }
+
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            return xForwardedFor.split(",")[0].trim();
+            String[] ips = xForwardedFor.split(",");
+            for (int i = ips.length - 1; i >= 0; i--) {
+                String ip = ips[i].trim();
+                if (!isTrustedProxy(ip)) {
+                    return ip;
+                }
+            }
         }
-        return request.getRemoteAddr();
+        return remoteAddr;
+    }
+
+    private boolean isTrustedProxy(String ip) {
+        return ip.startsWith("10.") ||
+               ip.startsWith("172.16.") || ip.startsWith("172.17.") ||
+               ip.startsWith("172.18.") || ip.startsWith("172.19.") ||
+               ip.startsWith("172.20.") || ip.startsWith("172.21.") ||
+               ip.startsWith("172.22.") || ip.startsWith("172.23.") ||
+               ip.startsWith("172.24.") || ip.startsWith("172.25.") ||
+               ip.startsWith("172.26.") || ip.startsWith("172.27.") ||
+               ip.startsWith("172.28.") || ip.startsWith("172.29.") ||
+               ip.startsWith("172.30.") || ip.startsWith("172.31.") ||
+               ip.startsWith("192.168.") ||
+               ip.equals("127.0.0.1") ||
+               ip.equals("0:0:0:0:0:0:0:1");
     }
 
     private boolean isBlacklisted(String token) {

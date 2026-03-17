@@ -1,6 +1,7 @@
 package com.gifiti.api.dto.request;
 
 import com.gifiti.api.model.enums.Priority;
+import com.gifiti.api.validation.NoHtml;
 import com.gifiti.api.validation.SafeUrl;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Positive;
@@ -24,10 +25,12 @@ import java.math.BigDecimal;
 public class UpdateItemRequest {
 
     @Size(max = 200, message = "Name must not exceed 200 characters")
+    @NoHtml
     @Schema(description = "New item name", example = "Sony WH-1000XM5 (Silver)")
     private String name;
 
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
+    @NoHtml
     @Schema(description = "New description", example = "Changed my mind — silver color")
     private String description;
 

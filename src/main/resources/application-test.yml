@@ -12,6 +12,16 @@ jwt:
   expiration: 3600000
   refresh-expiration: 604800000
 
+app:
+  swagger:
+    enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
 logging:
   level:
     root: WARN

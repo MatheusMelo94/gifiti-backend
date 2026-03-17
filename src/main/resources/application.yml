@@ -71,12 +71,22 @@ management:
     mongo:
       enabled: true  # Include MongoDB health check
 
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
 app:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+  swagger:
+    enabled: ${SWAGGER_ENABLED:false}
   mail:
     from: ${MAIL_FROM:noreply@gifiti.com}
   base-url: ${APP_BASE_URL:http://localhost:5173}
   cookie:
-    secure: ${APP_COOKIE_SECURE:false}
+    secure: ${APP_COOKIE_SECURE:true}
     same-site: ${APP_COOKIE_SAME_SITE:Lax}
     domain: ${APP_COOKIE_DOMAIN:}
 

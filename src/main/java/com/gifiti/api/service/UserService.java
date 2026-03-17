@@ -64,6 +64,10 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
+    public String getUserIdByEmail(String email) {
+        return findByEmail(email).getId();
+    }
+
     public void requireEmailVerified(String email) {
         User user = findByEmail(email);
         if (!user.isEmailVerified()) {

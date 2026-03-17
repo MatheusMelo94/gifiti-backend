@@ -1,6 +1,7 @@
 package com.gifiti.api.dto.request;
 
 import com.gifiti.api.model.enums.Priority;
+import com.gifiti.api.validation.NoHtml;
 import com.gifiti.api.validation.SafeUrl;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -25,10 +26,12 @@ public class CreateItemRequest {
 
     @NotBlank(message = "Name is required")
     @Size(max = 200, message = "Name must not exceed 200 characters")
+    @NoHtml
     @Schema(description = "Item name", example = "Sony WH-1000XM5 Headphones")
     private String name;
 
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
+    @NoHtml
     @Schema(description = "Optional description", example = "Noise-cancelling, black color")
     private String description;
 
