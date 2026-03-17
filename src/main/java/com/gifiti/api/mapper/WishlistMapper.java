@@ -25,6 +25,8 @@ public class WishlistMapper {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .visibility(request.getVisibility())
+                .eventDate(request.getEventDate())
+                .category(request.getCategory())
                 .build();
     }
 
@@ -42,6 +44,8 @@ public class WishlistMapper {
                 .description(wishlist.getDescription())
                 .visibility(wishlist.getVisibility())
                 .shareableId(wishlist.getShareableId())
+                .eventDate(wishlist.getEventDate())
+                .category(wishlist.getCategory())
                 .itemCount(itemCount)
                 .createdAt(wishlist.getCreatedAt())
                 .updatedAt(wishlist.getUpdatedAt())
@@ -64,6 +68,12 @@ public class WishlistMapper {
         }
         if (request.getVisibility() != null) {
             wishlist.setVisibility(request.getVisibility());
+        }
+        if (request.getEventDate() != null) {
+            wishlist.setEventDate(request.getEventDate());
+        }
+        if (request.getCategory() != null) {
+            wishlist.setCategory(request.getCategory());
         }
     }
 }

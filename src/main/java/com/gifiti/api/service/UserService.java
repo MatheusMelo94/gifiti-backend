@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.User;
 import com.gifiti.api.repository.UserRepository;
@@ -61,5 +62,16 @@ public class UserService {
      */
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    public String getUserIdByEmail(String email) {
+        return findByEmail(email).getId();
+    }
+
+    public void requireEmailVerified(String email) {
+        User user = findByEmail(email);
+        if (!user.isEmailVerified()) {
+            throw new AccessDeniedException("Email verification required. Please verify your email before performing this action.");
+        }
     }
 }

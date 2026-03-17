@@ -3,11 +3,24 @@ spring:
     mongodb:
       # URI is set dynamically by Testcontainers
       auto-index-creation: true
+  mail:
+    host: localhost
+    port: 25
 
 jwt:
   secret: test-secret-key-for-testing-minimum-32-characters
   expiration: 3600000
   refresh-expiration: 604800000
+
+app:
+  swagger:
+    enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
 
 logging:
   level:

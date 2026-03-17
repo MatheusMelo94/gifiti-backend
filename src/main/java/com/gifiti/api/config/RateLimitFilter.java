@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,8 @@ import java.io.IOException;
  * Protected endpoints:
  * - POST /api/v1/auth/register - 10 req/min per IP
  * - POST /api/v1/auth/login - 10 req/min per IP
+ * - POST /api/v1/auth/forgot-password - 10 req/min per IP
+ * - POST /api/v1/auth/reset-password - 10 req/min per IP
  * - POST /api/v1/auth/refresh - 20 req/min per IP (M-02 security fix)
  * - POST /api/v1/public/wishlists/{id}/items/{itemId}/reserve - 30 req/min per IP
  * - GET /api/v1/public/wishlists/* - 60 req/min per IP
@@ -34,12 +37,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitConfig rateLimitConfig;
 
+    @Value("${app.rate-limit.enabled:true}")
+    private boolean rateLimitEnabled;
+
     private static final long MAX_CONTENT_LENGTH = 1_048_576; // 1MB
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+
+        if (!rateLimitEnabled) {
+            log.debug("Rate limiting is DISABLED — passing through");
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String path = request.getRequestURI();
         String method = request.getMethod();
@@ -90,6 +102,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Check rate limits for authenticated endpoints (M-05 security fix)
         // Protects against abuse from compromised accounts
         if (path.startsWith("/api/v1/wishlists") && !path.startsWith("/api/v1/public")) {
+            if (!rateLimitConfig.tryConsumeAuthenticated(clientIp)) {
+                sendRateLimitResponse(response);
+                return;
+            }
+        }
+
+        // Rate limit profile and reservation endpoints
+        if (path.startsWith("/api/v1/profile") || path.startsWith("/api/v1/reservations")) {
             if (!rateLimitConfig.tryConsumeAuthenticated(clientIp)) {
                 sendRateLimitResponse(response);
                 return;
@@ -152,6 +172,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     private void sendRateLimitResponse(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setHeader("Retry-After", "60");
         response.setContentType("application/json");
         response.getWriter().write("""
                 {

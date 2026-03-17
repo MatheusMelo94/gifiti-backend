@@ -3,8 +3,19 @@ spring:
     name: gifiti-backend
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/gifiti}
+      uri: ${MONGODB_URI}
       auto-index-creation: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   # Request size limits to prevent DoS attacks
   servlet:
     multipart:
@@ -33,7 +44,7 @@ server:
 
 # CORS configuration - override for production
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080,http://localhost:5173}
 
 # Actuator configuration (M-01 security hardening)
 # Explicitly define which endpoints are exposed
@@ -59,6 +70,25 @@ management:
   health:
     mongo:
       enabled: true  # Include MongoDB health check
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+app:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+  swagger:
+    enabled: ${SWAGGER_ENABLED:false}
+  mail:
+    from: ${MAIL_FROM:noreply@gifiti.com}
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+  cookie:
+    secure: ${APP_COOKIE_SECURE:true}
+    same-site: ${APP_COOKIE_SAME_SITE:Lax}
+    domain: ${APP_COOKIE_DOMAIN:}
 
 logging:
   level:

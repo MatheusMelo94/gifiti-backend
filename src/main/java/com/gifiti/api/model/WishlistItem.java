@@ -64,6 +64,12 @@ public class WishlistItem {
     @Builder.Default
     private Priority priority = Priority.MEDIUM;
 
+    @Builder.Default
+    private int quantity = 1;
+
+    @Builder.Default
+    private int reservedQuantity = 0;
+
     @NotNull
     @Builder.Default
     private ItemStatus status = ItemStatus.AVAILABLE;

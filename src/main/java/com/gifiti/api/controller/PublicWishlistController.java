@@ -1,13 +1,21 @@
 package com.gifiti.api.controller;
 
+import com.gifiti.api.dto.response.ErrorResponse;
 import com.gifiti.api.dto.response.PublicWishlistResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
 import com.gifiti.api.service.PublicWishlistService;
 import com.gifiti.api.service.ReservationService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.gifiti.api.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,117 +23,73 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST controller for public (unauthenticated) wishlist access.
- * Allows anyone with a shareable link to view a public wishlist and reserve items.
- *
- * Security: This controller is whitelisted in SecurityConfig:
- * - GET /api/v1/public/** is permitted for viewing
- * - POST /api/v1/public/wishlists/{id}/items/{id}/reserve is permitted for reservations
+ * REST controller for shared wishlist access.
+ * All endpoints require authentication — users must be logged in AND have the shareable link.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/public/wishlists")
 @RequiredArgsConstructor
+@Tag(name = "Public Wishlists", description = "View shared wishlists and reserve items")
 public class PublicWishlistController {
 
     private final PublicWishlistService publicWishlistService;
     private final ReservationService reservationService;
+    private final UserService userService;
 
     /**
-     * View a public wishlist by its shareable ID.
-     * No authentication required.
-     *
-     * GET /api/v1/public/wishlists/{shareableId}
-     *
-     * @param shareableId The shareable identifier (NanoID)
-     * @return Wishlist details with items
+     * View a shared wishlist by its shareable ID.
+     * Authentication required — only logged-in users with the link can view.
      */
+    @Operation(
+            summary = "View a shared wishlist by shareable ID",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Wishlist found"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Wishlist not found or not public",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
     @GetMapping("/{shareableId}")
     public ResponseEntity<PublicWishlistResponse> getPublicWishlist(
-            @PathVariable String shareableId) {
-        log.debug("Public wishlist request for: {}", shareableId);
+            @PathVariable String shareableId,
+            Authentication authentication) {
+        log.debug("Shared wishlist request for: {} by user: {}", shareableId, authentication.getName());
         PublicWishlistResponse response = publicWishlistService.findByShareableId(shareableId);
         return ResponseEntity.ok(response);
     }
 
     /**
      * Reserve an item on a public wishlist.
-     * No authentication required - uses session/IP for reserver identity.
-     *
-     * POST /api/v1/public/wishlists/{shareableId}/items/{itemId}/reserve
-     *
-     * @param shareableId The shareable identifier (NanoID)
-     * @param itemId The item to reserve
-     * @param request HTTP request for extracting reserver identity
-     * @return Reservation confirmation
+     * Authentication required — user must be logged in to reserve.
      */
+    @Operation(
+            summary = "Reserve an item on a public wishlist",
+            security = @SecurityRequirement(name = "bearerAuth"),
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Item reserved"),
+                    @ApiResponse(responseCode = "401", description = "Authentication required"),
+                    @ApiResponse(responseCode = "404", description = "Wishlist or item not found",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                    @ApiResponse(responseCode = "409", description = "Item already reserved",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
     @PostMapping("/{shareableId}/items/{itemId}/reserve")
     public ResponseEntity<ReservationResponse> reserveItem(
             @PathVariable String shareableId,
             @PathVariable String itemId,
-            HttpServletRequest request) {
-        log.debug("Reserve request for item {} in wishlist {}", itemId, shareableId);
+            Authentication authentication) {
+        log.debug("Reserve request for item {} in wishlist {} by user {}", itemId, shareableId, authentication.getName());
 
-        // Verify wishlist exists and is public (throws 404 if not)
+        userService.requireEmailVerified(authentication.getName());
+
+        // Verify wishlist exists and is public
         publicWishlistService.findByShareableId(shareableId);
 
-        // Generate anonymous reserver ID from session or IP
-        String reserverId = getReserverId(request);
+        // Resolve user ID from authenticated user
+        String userId = userService.getUserIdByEmail(authentication.getName());
 
-        ReservationResponse response = reservationService.reserve(itemId, reserverId);
+        ReservationResponse response = reservationService.reserve(itemId, userId);
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Generate an anonymous reserver identifier without creating sessions.
-     *
-     * Security: Uses stateless fingerprinting (IP + User-Agent hash) to maintain
-     * STATELESS design and prevent session-based DoS attacks.
-     * This identifier is stable per client but not trackable across IP changes.
-     */
-    private String getReserverId(HttpServletRequest request) {
-        String ip = getClientIp(request);
-        String userAgent = request.getHeader("User-Agent");
-        String fingerprint = ip + ":" + (userAgent != null ? userAgent.hashCode() : "unknown");
-        return "fingerprint:" + Integer.toHexString(fingerprint.hashCode());
-    }
-
-    /**
-     * Extract client IP with X-Forwarded-For spoofing protection.
-     */
-    private String getClientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-
-        // Only trust X-Forwarded-For if from private network (proxy)
-        if (!isPrivateNetwork(remoteAddr)) {
-            return remoteAddr;
-        }
-
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            String[] ips = xForwardedFor.split(",");
-            for (int i = ips.length - 1; i >= 0; i--) {
-                String ip = ips[i].trim();
-                if (!isPrivateNetwork(ip)) {
-                    return ip;
-                }
-            }
-        }
-        return remoteAddr;
-    }
-
-    private boolean isPrivateNetwork(String ip) {
-        return ip.startsWith("10.") ||
-               ip.startsWith("172.16.") || ip.startsWith("172.17.") ||
-               ip.startsWith("172.18.") || ip.startsWith("172.19.") ||
-               ip.startsWith("172.20.") || ip.startsWith("172.21.") ||
-               ip.startsWith("172.22.") || ip.startsWith("172.23.") ||
-               ip.startsWith("172.24.") || ip.startsWith("172.25.") ||
-               ip.startsWith("172.26.") || ip.startsWith("172.27.") ||
-               ip.startsWith("172.28.") || ip.startsWith("172.29.") ||
-               ip.startsWith("172.30.") || ip.startsWith("172.31.") ||
-               ip.startsWith("192.168.") ||
-               ip.equals("127.0.0.1") ||
-               ip.equals("0:0:0:0:0:0:0:1");
     }
 }

@@ -9,11 +9,16 @@ import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.mapper.WishlistMapper;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
+import com.gifiti.api.model.enums.WishlistCategory;
+import com.aventrix.jnanoid.jnanoid.NanoIdUtils;
 import com.gifiti.api.repository.ReservationRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,6 +70,31 @@ public class WishlistService {
 
         return WishlistListResponse.builder()
                 .wishlists(responses)
+                .build();
+    }
+
+    public WishlistListResponse findAllByOwner(String userId, int page, int size) {
+        return findAllByOwner(userId, null, page, size);
+    }
+
+    public WishlistListResponse findAllByOwner(String userId, WishlistCategory category, int page, int size) {
+        log.debug("Finding wishlists for user: {} (category={}, page={}, size={})", userId, category, page, size);
+
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Wishlist> wishlistPage = category != null
+                ? wishlistRepository.findByOwnerUserIdAndCategory(userId, category, pageRequest)
+                : wishlistRepository.findByOwnerUserId(userId, pageRequest);
+
+        List<WishlistResponse> responses = wishlistPage.getContent().stream()
+                .map(wishlist -> wishlistMapper.toResponse(wishlist, getItemCount(wishlist.getId())))
+                .toList();
+
+        return WishlistListResponse.builder()
+                .wishlists(responses)
+                .totalElements(wishlistPage.getTotalElements())
+                .totalPages(wishlistPage.getTotalPages())
+                .currentPage(wishlistPage.getNumber())
+                .size(wishlistPage.getSize())
                 .build();
     }
 
@@ -175,6 +205,17 @@ public class WishlistService {
     public Wishlist findByShareableId(String shareableId) {
         return wishlistRepository.findByShareableId(shareableId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+    }
+
+    public WishlistResponse rotateShareableId(String id, String userId) {
+        log.info("Rotating shareable ID for wishlist {} by user {}", id, userId);
+
+        Wishlist wishlist = findAndVerifyOwnership(id, userId);
+        wishlist.setShareableId(NanoIdUtils.randomNanoId());
+        Wishlist saved = wishlistRepository.save(wishlist);
+
+        log.info("Shareable ID rotated for wishlist {}", id);
+        return wishlistMapper.toResponse(saved, getItemCount(id));
     }
 
     /**

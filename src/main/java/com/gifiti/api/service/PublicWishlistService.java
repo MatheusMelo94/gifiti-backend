@@ -3,9 +3,11 @@ package com.gifiti.api.service;
 import com.gifiti.api.dto.response.PublicItemResponse;
 import com.gifiti.api.dto.response.PublicWishlistResponse;
 import com.gifiti.api.exception.ResourceNotFoundException;
+import com.gifiti.api.model.User;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
 import com.gifiti.api.model.enums.Visibility;
+import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ public class PublicWishlistService {
 
     private final WishlistRepository wishlistRepository;
     private final WishlistItemRepository wishlistItemRepository;
+    private final UserRepository userRepository;
 
     /**
      * Get a public wishlist by its shareable ID.
@@ -52,6 +55,9 @@ public class PublicWishlistService {
             throw new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
         }
 
+        // Look up owner display name (PRIVACY: only displayName, never email or ID)
+        String ownerDisplayName = resolveOwnerDisplayName(wishlist.getOwnerUserId());
+
         // Fetch all items in the wishlist
         List<WishlistItem> items = wishlistItemRepository.findByWishlistId(wishlist.getId());
 
@@ -66,9 +72,30 @@ public class PublicWishlistService {
                 .shareableId(wishlist.getShareableId())
                 .title(wishlist.getTitle())
                 .description(wishlist.getDescription())
+                .ownerDisplayName(ownerDisplayName)
+                .eventDate(wishlist.getEventDate())
                 .itemCount(publicItems.size())
                 .items(publicItems)
                 .build();
+    }
+
+    /**
+     * Resolve owner display name with fallback to email prefix.
+     * PRIVACY: Only returns displayName — never email address or internal ID.
+     */
+    private String resolveOwnerDisplayName(String ownerUserId) {
+        User owner = userRepository.findById(ownerUserId).orElse(null);
+
+        if (owner != null && owner.getDisplayName() != null && !owner.getDisplayName().isBlank()) {
+            return owner.getDisplayName();
+        }
+
+        // Fallback: extract prefix from email (e.g., "maria" from "maria@gmail.com")
+        if (owner != null && owner.getEmail() != null) {
+            return owner.getEmail().split("@")[0];
+        }
+
+        return "Unknown";
     }
 
     /**
@@ -84,6 +111,9 @@ public class PublicWishlistService {
                 .imageUrl(item.getImageUrl())
                 .price(item.getPrice())
                 .priority(item.getPriority())
+                .quantity(item.getQuantity())
+                .reservedQuantity(item.getReservedQuantity())
+                .remainingQuantity(item.getQuantity() - item.getReservedQuantity())
                 .status(item.getStatus())
                 .build();
         // PRIVACY: No reserverId, no ownerUserId, no timestamps

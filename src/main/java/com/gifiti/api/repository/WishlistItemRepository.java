@@ -1,6 +1,8 @@
 package com.gifiti.api.repository;
 
 import com.gifiti.api.model.WishlistItem;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
@@ -20,6 +22,8 @@ public interface WishlistItemRepository extends MongoRepository<WishlistItem, St
      * @return list of items in the wishlist
      */
     List<WishlistItem> findByWishlistId(String wishlistId);
+
+    Page<WishlistItem> findByWishlistId(String wishlistId, Pageable pageable);
 
     /**
      * Find all items owned by a specific user across all wishlists.

@@ -13,6 +13,9 @@ import com.gifiti.api.repository.ReservationRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +80,27 @@ public class WishlistItemService {
 
         return ItemListResponse.builder()
                 .items(responses)
+                .build();
+    }
+
+    public ItemListResponse findAllByWishlistId(String wishlistId, String userId, int page, int size) {
+        log.debug("Finding items in wishlist {} for user {} (page={}, size={})", wishlistId, userId, page, size);
+
+        wishlistService.findAndVerifyOwnership(wishlistId, userId);
+
+        Page<WishlistItem> itemPage = wishlistItemRepository.findByWishlistId(
+                wishlistId, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+
+        List<WishlistItemResponse> responses = itemPage.getContent().stream()
+                .map(wishlistItemMapper::toResponse)
+                .toList();
+
+        return ItemListResponse.builder()
+                .items(responses)
+                .totalElements(itemPage.getTotalElements())
+                .totalPages(itemPage.getTotalPages())
+                .currentPage(itemPage.getNumber())
+                .size(itemPage.getSize())
                 .build();
     }
 

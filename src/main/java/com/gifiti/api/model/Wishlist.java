@@ -2,6 +2,7 @@ package com.gifiti.api.model;
 
 import com.aventrix.jnanoid.jnanoid.NanoIdUtils;
 import com.gifiti.api.model.enums.Visibility;
+import com.gifiti.api.model.enums.WishlistCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,6 +17,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * Wishlist entity representing a gift wishlist.
@@ -49,6 +51,10 @@ public class Wishlist {
     @Indexed(unique = true)
     @Builder.Default
     private String shareableId = NanoIdUtils.randomNanoId();
+
+    private LocalDate eventDate;
+
+    private WishlistCategory category;
 
     @CreatedDate
     private Instant createdAt;

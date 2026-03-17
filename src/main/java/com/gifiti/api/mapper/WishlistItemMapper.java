@@ -31,6 +31,7 @@ public class WishlistItemMapper {
                 .imageUrl(request.getImageUrl())
                 .price(request.getPrice())
                 .priority(request.getPriority())
+                .quantity(request.getQuantity())
                 .build();
     }
 
@@ -44,12 +45,16 @@ public class WishlistItemMapper {
     public WishlistItemResponse toResponse(WishlistItem item) {
         return WishlistItemResponse.builder()
                 .id(item.getId())
+                .wishlistId(item.getWishlistId())
                 .name(item.getName())
                 .description(item.getDescription())
                 .productLink(item.getProductLink())
                 .imageUrl(item.getImageUrl())
                 .price(item.getPrice())
                 .priority(item.getPriority())
+                .quantity(item.getQuantity())
+                .reservedQuantity(item.getReservedQuantity())
+                .remainingQuantity(item.getQuantity() - item.getReservedQuantity())
                 .status(item.getStatus())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
@@ -82,6 +87,9 @@ public class WishlistItemMapper {
         }
         if (request.getPriority() != null) {
             item.setPriority(request.getPriority());
+        }
+        if (request.getQuantity() != null) {
+            item.setQuantity(request.getQuantity());
         }
     }
 }
