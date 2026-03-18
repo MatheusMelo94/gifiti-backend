@@ -5,17 +5,6 @@ spring:
     mongodb:
       uri: ${MONGODB_URI}
       auto-index-creation: true
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
   # Request size limits to prevent DoS attacks
   servlet:
     multipart:
@@ -82,8 +71,10 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
   swagger:
     enabled: ${SWAGGER_ENABLED:false}
+  resend:
+    api-key: ${RESEND_API_KEY}
   mail:
-    from: ${MAIL_FROM:noreply@gifiti.com}
+    from: ${MAIL_FROM:hello@ggifiti.com}
   base-url: ${APP_BASE_URL:http://localhost:5173}
   cookie:
     secure: ${APP_COOKIE_SECURE:true}
