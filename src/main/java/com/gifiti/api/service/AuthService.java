@@ -314,12 +314,8 @@ public class AuthService {
 
     private void sendVerificationEmail(String email, String token) {
         String verifyUrl = baseUrl + "/verify-email?token=" + token;
-        String body = "<h2>Welcome to Gifiti!</h2>"
-                + "<p>Thanks for signing up. Please confirm your email address by clicking the link below:</p>"
-                + "<p><a href=\"" + verifyUrl + "\">Confirm Email Address</a></p>"
-                + "<p>This link expires in 24 hours.</p>"
-                + "<p>If you didn't create a Gifiti account, you can safely ignore this email.</p>";
-        emailService.send(email, "Welcome to Gifiti - Please confirm your email", body);
+        emailService.send(email, "Welcome to Gifiti - Please confirm your email",
+                EmailTemplates.verification(verifyUrl));
     }
 
     /**
@@ -369,10 +365,7 @@ public class AuthService {
 
     private void sendPasswordResetEmail(String email, String token) {
         String resetUrl = baseUrl + "/reset-password?token=" + token;
-        String body = "<h2>Reset your Gifiti password</h2>"
-                + "<p>Click the link below to reset your password:</p>"
-                + "<p><a href=\"" + resetUrl + "\">Reset Password</a></p>"
-                + "<p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>";
-        emailService.send(email, "Reset your Gifiti password", body);
+        emailService.send(email, "Reset your Gifiti password",
+                EmailTemplates.passwordReset(resetUrl));
     }
 }
