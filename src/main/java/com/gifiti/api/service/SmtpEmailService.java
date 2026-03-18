@@ -26,6 +26,7 @@ public class SmtpEmailService implements EmailService {
     @Override
     public void send(String to, String subject, String body) {
         try {
+            log.info("Attempting to send email to {} with subject: {}", to, subject);
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(fromAddress);
@@ -33,9 +34,9 @@ public class SmtpEmailService implements EmailService {
             helper.setSubject(subject);
             helper.setText(body, true);
             mailSender.send(message);
-            log.info("Email sent to {} with subject: {}", to, subject);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.info("Email sent successfully to {} with subject: {}", to, subject);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {} - {}", to, e.getClass().getSimpleName(), e.getMessage());
         }
     }
 }
