@@ -18,18 +18,22 @@ public final class EmailTemplates {
                 <tr>
                   <td align="center">
                     <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #18181b; border-radius: 16px; overflow: hidden;">
+                      <!-- Header with logo -->
                       <tr>
                         <td align="center" style="padding: 40px 40px 24px 40px;">
                           <img src="https://www.ggifiti.com/gifiti-logo.png" alt="Gifiti" width="200" style="display: block; height: auto;" />
                         </td>
                       </tr>
+                      <!-- Heading: Welcome to + logo -->
                       <tr>
                         <td align="center" style="padding: 0 40px 8px 40px;">
                           <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #fafafa; line-height: 1.3;">
-                            Welcome to Gifiti!
+                            Welcome to
+                            <img src="https://www.ggifiti.com/gifiti-logo.png" alt="Gifiti" height="28" style="vertical-align: middle; height: 28px; width: auto;" />
                           </h1>
                         </td>
                       </tr>
+                      <!-- Body text -->
                       <tr>
                         <td align="center" style="padding: 0 40px 32px 40px;">
                           <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #a1a1aa;">
@@ -37,6 +41,7 @@ public final class EmailTemplates {
                           </p>
                         </td>
                       </tr>
+                      <!-- CTA Button -->
                       <tr>
                         <td align="center" style="padding: 0 40px 32px 40px;">
                           <table role="presentation" cellpadding="0" cellspacing="0">
@@ -50,11 +55,13 @@ public final class EmailTemplates {
                           </table>
                         </td>
                       </tr>
+                      <!-- Divider -->
                       <tr>
                         <td style="padding: 0 40px;">
                           <div style="height: 1px; background-color: #27272a;"></div>
                         </td>
                       </tr>
+                      <!-- Fallback link -->
                       <tr>
                         <td align="center" style="padding: 24px 40px 8px 40px;">
                           <p style="margin: 0; font-size: 12px; color: #71717a; line-height: 1.5;">
@@ -69,53 +76,7 @@ public final class EmailTemplates {
                           </a>
                         </td>
                       </tr>
-                      <tr>
-                        <td align="center" style="padding: 0 40px 16px 40px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" style="background-color: #27272a; border-radius: 12px; overflow: hidden;">
-                            <tr>
-                              <td style="padding: 16px 24px; text-align: center;">
-                                <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 1px;">
-                                  Link expires in
-                                </p>
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                                  <tr>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        24
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Hours
-                                      </p>
-                                    </td>
-                                    <td align="center" style="padding: 0 2px; vertical-align: top;">
-                                      <div style="font-size: 22px; font-weight: 700; color: #52525b; line-height: 52px;">:</div>
-                                    </td>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        00
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Min
-                                      </p>
-                                    </td>
-                                    <td align="center" style="padding: 0 2px; vertical-align: top;">
-                                      <div style="font-size: 22px; font-weight: 700; color: #52525b; line-height: 52px;">:</div>
-                                    </td>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        00
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Sec
-                                      </p>
-                                    </td>
-                                  </tr>
-                                </table>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
+                      <!-- Ignore notice -->
                       <tr>
                         <td align="center" style="padding: 0 40px 40px 40px;">
                           <p style="margin: 0; font-size: 12px; color: #52525b; line-height: 1.5;">
@@ -124,6 +85,7 @@ public final class EmailTemplates {
                         </td>
                       </tr>
                     </table>
+                    <!-- Footer -->
                     <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width: 520px;">
                       <tr>
                         <td align="center" style="padding: 24px 40px 0 40px;">
@@ -163,11 +125,13 @@ public final class EmailTemplates {
                 <tr>
                   <td align="center">
                     <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width: 520px; background-color: #18181b; border-radius: 16px; overflow: hidden;">
+                      <!-- Header with logo -->
                       <tr>
                         <td align="center" style="padding: 40px 40px 24px 40px;">
                           <img src="https://www.ggifiti.com/gifiti-logo.png" alt="Gifiti" width="200" style="display: block; height: auto;" />
                         </td>
                       </tr>
+                      <!-- Heading -->
                       <tr>
                         <td align="center" style="padding: 0 40px 8px 40px;">
                           <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #fafafa; line-height: 1.3;">
@@ -175,6 +139,7 @@ public final class EmailTemplates {
                           </h1>
                         </td>
                       </tr>
+                      <!-- Body text -->
                       <tr>
                         <td align="center" style="padding: 0 40px 32px 40px;">
                           <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #a1a1aa;">
@@ -182,6 +147,7 @@ public final class EmailTemplates {
                           </p>
                         </td>
                       </tr>
+                      <!-- CTA Button -->
                       <tr>
                         <td align="center" style="padding: 0 40px 32px 40px;">
                           <table role="presentation" cellpadding="0" cellspacing="0">
@@ -195,11 +161,13 @@ public final class EmailTemplates {
                           </table>
                         </td>
                       </tr>
+                      <!-- Divider -->
                       <tr>
                         <td style="padding: 0 40px;">
                           <div style="height: 1px; background-color: #27272a;"></div>
                         </td>
                       </tr>
+                      <!-- Fallback link -->
                       <tr>
                         <td align="center" style="padding: 24px 40px 8px 40px;">
                           <p style="margin: 0; font-size: 12px; color: #71717a; line-height: 1.5;">
@@ -214,53 +182,7 @@ public final class EmailTemplates {
                           </a>
                         </td>
                       </tr>
-                      <tr>
-                        <td align="center" style="padding: 0 40px 16px 40px;">
-                          <table role="presentation" cellpadding="0" cellspacing="0" style="background-color: #27272a; border-radius: 12px; overflow: hidden;">
-                            <tr>
-                              <td style="padding: 16px 24px; text-align: center;">
-                                <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 1px;">
-                                  Link expires in
-                                </p>
-                                <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                                  <tr>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        01
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Hours
-                                      </p>
-                                    </td>
-                                    <td align="center" style="padding: 0 2px; vertical-align: top;">
-                                      <div style="font-size: 22px; font-weight: 700; color: #52525b; line-height: 52px;">:</div>
-                                    </td>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        00
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Min
-                                      </p>
-                                    </td>
-                                    <td align="center" style="padding: 0 2px; vertical-align: top;">
-                                      <div style="font-size: 22px; font-weight: 700; color: #52525b; line-height: 52px;">:</div>
-                                    </td>
-                                    <td align="center" style="padding: 0 8px;">
-                                      <div style="width: 52px; height: 52px; line-height: 52px; font-size: 24px; font-weight: 700; color: #fafafa; background-color: #09090b; border-radius: 10px; text-align: center;">
-                                        00
-                                      </div>
-                                      <p style="margin: 6px 0 0 0; font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">
-                                        Sec
-                                      </p>
-                                    </td>
-                                  </tr>
-                                </table>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
+                      <!-- Ignore notice -->
                       <tr>
                         <td align="center" style="padding: 0 40px 40px 40px;">
                           <p style="margin: 0; font-size: 12px; color: #52525b; line-height: 1.5;">
@@ -269,6 +191,7 @@ public final class EmailTemplates {
                         </td>
                       </tr>
                     </table>
+                    <!-- Footer -->
                     <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width: 520px;">
                       <tr>
                         <td align="center" style="padding: 24px 40px 0 40px;">
