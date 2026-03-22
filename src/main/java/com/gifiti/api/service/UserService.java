@@ -1,11 +1,14 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.User;
+import com.gifiti.api.model.enums.AuthProvider;
 import com.gifiti.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -19,6 +22,8 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final PasswordValidationService passwordValidationService;
 
     /**
      * Find a user by ID.
@@ -73,5 +78,22 @@ public class UserService {
         if (!user.isEmailVerified()) {
             throw new AccessDeniedException("Email verification required. Please verify your email before performing this action.");
         }
+    }
+
+    public MessageResponse setPassword(String email, String newPassword) {
+        User user = findByEmail(email);
+
+        if (user.getAuthProvider() != AuthProvider.GOOGLE) {
+            throw new IllegalArgumentException("Password already set. Use forgot-password to change it.");
+        }
+
+        passwordValidationService.validate(newPassword, email);
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setAuthProvider(AuthProvider.BOTH);
+        userRepository.save(user);
+
+        log.info("Password set for Google user: {}", email);
+        return MessageResponse.builder().message("Password set successfully").build();
     }
 }

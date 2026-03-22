@@ -71,6 +71,8 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
   swagger:
     enabled: ${SWAGGER_ENABLED:false}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
   resend:
     api-key: ${RESEND_API_KEY}
   mail:

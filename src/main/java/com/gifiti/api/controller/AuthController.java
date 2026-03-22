@@ -1,6 +1,7 @@
 package com.gifiti.api.controller;
 
 import com.gifiti.api.dto.request.ForgotPasswordRequest;
+import com.gifiti.api.dto.request.GoogleLoginRequest;
 import com.gifiti.api.dto.request.LoginRequest;
 import com.gifiti.api.dto.request.RegisterRequest;
 import com.gifiti.api.dto.request.ResetPasswordRequest;
@@ -77,6 +78,29 @@ public class AuthController {
             HttpServletResponse response) {
         log.debug("Login request received for email: {}", request.getEmail());
         AuthResponse authResponse = authService.login(request);
+
+        cookieUtil.addAccessTokenCookie(response, authResponse.getAccessToken());
+        cookieUtil.addRefreshTokenCookie(response, authResponse.getRefreshToken());
+
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @Operation(
+            summary = "Authenticate with Google Sign-In",
+            security = {},
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Login successful"),
+                    @ApiResponse(responseCode = "401", description = "Invalid Google credentials",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                    @ApiResponse(responseCode = "409", description = "Email already registered",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    @PostMapping(path = "/google", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<AuthResponse> googleLogin(
+            @Valid @RequestBody GoogleLoginRequest request,
+            HttpServletResponse response) {
+        log.debug("Google login request received");
+        AuthResponse authResponse = authService.loginWithGoogle(request.getIdToken());
 
         cookieUtil.addAccessTokenCookie(response, authResponse.getAccessToken());
         cookieUtil.addRefreshTokenCookie(response, authResponse.getRefreshToken());
