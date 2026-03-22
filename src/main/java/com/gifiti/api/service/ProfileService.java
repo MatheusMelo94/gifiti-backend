@@ -58,6 +58,7 @@ public class ProfileService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .displayName(user.getDisplayName())
+                .profilePictureUrl(user.getProfilePictureUrl())
                 .roles(user.getRoles())
                 .emailVerified(user.isEmailVerified())
                 .createdAt(user.getCreatedAt())

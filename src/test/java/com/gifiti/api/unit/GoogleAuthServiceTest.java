@@ -64,8 +64,10 @@ class GoogleAuthServiceTest {
     private static final String NAME = "Test User";
     private static final String ID_TOKEN = "valid-id-token";
 
+    private static final String PICTURE_URL = "https://lh3.googleusercontent.com/photo.jpg";
+
     private GoogleUserInfo validGoogleUser() {
-        return new GoogleUserInfo(GOOGLE_ID, EMAIL, NAME, true);
+        return new GoogleUserInfo(GOOGLE_ID, EMAIL, NAME, PICTURE_URL, true);
     }
 
     private void stubJwtTokens() {
@@ -91,7 +93,7 @@ class GoogleAuthServiceTest {
         @Test
         @DisplayName("should reject unverified Google email")
         void shouldRejectUnverifiedGoogleEmail() {
-            GoogleUserInfo unverified = new GoogleUserInfo(GOOGLE_ID, EMAIL, NAME, false);
+            GoogleUserInfo unverified = new GoogleUserInfo(GOOGLE_ID, EMAIL, NAME, PICTURE_URL, false);
             when(googleTokenVerifierService.verify(ID_TOKEN)).thenReturn(unverified);
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
@@ -138,7 +140,7 @@ class GoogleAuthServiceTest {
         @Test
         @DisplayName("should derive displayName from email when Google name is null")
         void shouldDeriveDisplayNameFromEmail() {
-            GoogleUserInfo noName = new GoogleUserInfo(GOOGLE_ID, EMAIL, null, true);
+            GoogleUserInfo noName = new GoogleUserInfo(GOOGLE_ID, EMAIL, null, PICTURE_URL, true);
             when(googleTokenVerifierService.verify(ID_TOKEN)).thenReturn(noName);
             when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.empty());
             when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
@@ -169,6 +171,7 @@ class GoogleAuthServiceTest {
                     .email(EMAIL)
                     .googleId(GOOGLE_ID)
                     .displayName(NAME)
+                    .profilePictureUrl(PICTURE_URL)
                     .authProvider(AuthProvider.GOOGLE)
                     .roles(Set.of(Role.USER))
                     .build();
@@ -181,7 +184,8 @@ class GoogleAuthServiceTest {
 
             assertThat(response.getUser().getId()).isEqualTo("existing-id");
             assertThat(response.getUser().getEmail()).isEqualTo(EMAIL);
-            // Should NOT save since email hasn't changed
+            assertThat(response.getUser().getProfilePictureUrl()).isEqualTo(PICTURE_URL);
+            // Should NOT save since nothing changed
             verify(userRepository, never()).save(any());
         }
 
@@ -193,6 +197,7 @@ class GoogleAuthServiceTest {
                     .email("old@example.com")
                     .googleId(GOOGLE_ID)
                     .displayName(NAME)
+                    .profilePictureUrl(PICTURE_URL)
                     .authProvider(AuthProvider.GOOGLE)
                     .roles(Set.of(Role.USER))
                     .build();
@@ -217,6 +222,7 @@ class GoogleAuthServiceTest {
                     .email("old@example.com")
                     .googleId(GOOGLE_ID)
                     .displayName(NAME)
+                    .profilePictureUrl(PICTURE_URL)
                     .authProvider(AuthProvider.GOOGLE)
                     .roles(Set.of(Role.USER))
                     .build();

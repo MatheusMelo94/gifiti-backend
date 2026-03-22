@@ -161,6 +161,7 @@ public class AuthService {
                             .id(user.getId())
                             .email(user.getEmail())
                             .displayName(user.getDisplayName())
+                            .profilePictureUrl(user.getProfilePictureUrl())
                             .roles(user.getRoles())
                             .build())
                     .accessToken(accessToken)
@@ -226,6 +227,7 @@ public class AuthService {
                         .id(user.getId())
                         .email(user.getEmail())
                         .displayName(user.getDisplayName())
+                        .profilePictureUrl(user.getProfilePictureUrl())
                         .roles(user.getRoles())
                         .build())
                 .accessToken(newAccessToken)
@@ -332,11 +334,20 @@ public class AuthService {
         Optional<User> byGoogleId = userRepository.findByGoogleId(googleUser.googleId());
         if (byGoogleId.isPresent()) {
             user = byGoogleId.get();
+            boolean changed = false;
             // Handle email change on Google side
             if (!email.equals(user.getEmail()) && !userRepository.existsByEmail(email)) {
                 user.setEmail(email);
+                changed = true;
+            }
+            // Refresh profile picture
+            if (googleUser.picture() != null && !googleUser.picture().equals(user.getProfilePictureUrl())) {
+                user.setProfilePictureUrl(googleUser.picture());
+                changed = true;
+            }
+            if (changed) {
                 userRepository.save(user);
-                log.info("Updated email for Google user: {}", user.getId());
+                log.info("Updated profile for Google user: {}", user.getId());
             }
         } else {
             // 2. Find by email (link or create)
@@ -344,6 +355,7 @@ public class AuthService {
             if (byEmail.isPresent()) {
                 user = byEmail.get();
                 user.setGoogleId(googleUser.googleId());
+                user.setProfilePictureUrl(googleUser.picture());
                 if (user.isEmailVerified()) {
                     // Verified local user — link accounts
                     user.setAuthProvider(AuthProvider.BOTH);
@@ -368,6 +380,7 @@ public class AuthService {
                         .googleId(googleUser.googleId())
                         .authProvider(AuthProvider.GOOGLE)
                         .displayName(displayName)
+                        .profilePictureUrl(googleUser.picture())
                         .emailVerified(true)
                         .roles(Set.of(Role.USER))
                         .build();
@@ -391,6 +404,7 @@ public class AuthService {
                         .id(user.getId())
                         .email(user.getEmail())
                         .displayName(user.getDisplayName())
+                        .profilePictureUrl(user.getProfilePictureUrl())
                         .roles(user.getRoles())
                         .build())
                 .accessToken(accessToken)

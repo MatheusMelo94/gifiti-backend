@@ -58,6 +58,8 @@ public class User {
     @Indexed(unique = true, sparse = true)
     private String googleId;
 
+    private String profilePictureUrl;
+
     @Builder.Default
     private AuthProvider authProvider = AuthProvider.LOCAL;
 

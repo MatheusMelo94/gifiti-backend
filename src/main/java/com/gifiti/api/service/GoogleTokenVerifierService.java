@@ -23,7 +23,7 @@ public class GoogleTokenVerifierService {
                 .build();
     }
 
-    public record GoogleUserInfo(String googleId, String email, String name, boolean emailVerified) {}
+    public record GoogleUserInfo(String googleId, String email, String name, String picture, boolean emailVerified) {}
 
     public GoogleUserInfo verify(String idTokenString) {
         try {
@@ -38,6 +38,7 @@ public class GoogleTokenVerifierService {
                     payload.getSubject(),
                     payload.getEmail(),
                     (String) payload.get("name"),
+                    (String) payload.get("picture"),
                     Boolean.TRUE.equals(payload.getEmailVerified())
             );
         } catch (Exception e) {
