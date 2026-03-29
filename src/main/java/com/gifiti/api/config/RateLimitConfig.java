@@ -73,6 +73,16 @@ public class RateLimitConfig {
             .build();
 
     /**
+     * Cache for image upload endpoint rate limit buckets.
+     * Per-user (not per-IP) to prevent storage abuse.
+     * 20 uploads per hour per authenticated user.
+     */
+    private final Cache<String, Bucket> uploadBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofHours(1))
+            .maximumSize(10_000)
+            .build();
+
+    /**
      * Try to consume a token from the auth bucket.
      * Limit: 10 requests per minute per IP.
      *
@@ -209,6 +219,33 @@ public class RateLimitConfig {
     }
 
     /**
+     * Try to consume a token from the upload bucket.
+     * Limit: 20 uploads per hour per user (not per IP — per authenticated user).
+     *
+     * @param userId The authenticated user's ID
+     * @return true if request is allowed, false if rate limited
+     */
+    public boolean tryConsumeUpload(String userId) {
+        Bucket bucket = uploadBuckets.get(userId, id -> createUploadBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Upload rate limit exceeded for user: {}", userId);
+        }
+        return allowed;
+    }
+
+    /**
+     * Create a rate limit bucket for image uploads.
+     * 20 uploads per hour per user.
+     */
+    private Bucket createUploadBucket() {
+        Bandwidth limit = Bandwidth.classic(20, Refill.greedy(20, Duration.ofHours(1)));
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
+    }
+
+    /**
      * Mask IP address for logging (privacy).
      */
     private String maskIp(String ip) {
@@ -226,11 +263,12 @@ public class RateLimitConfig {
      * Get current cache sizes for monitoring.
      */
     public String getCacheStats() {
-        return String.format("auth=%d, reservation=%d, authenticated=%d, public=%d, refresh=%d",
+        return String.format("auth=%d, reservation=%d, authenticated=%d, public=%d, refresh=%d, upload=%d",
                 authBuckets.estimatedSize(),
                 reservationBuckets.estimatedSize(),
                 authenticatedBuckets.estimatedSize(),
                 publicBuckets.estimatedSize(),
-                refreshBuckets.estimatedSize());
+                refreshBuckets.estimatedSize(),
+                uploadBuckets.estimatedSize());
     }
 }
