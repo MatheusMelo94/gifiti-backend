@@ -25,6 +25,8 @@ app:
   upload:
     max-file-size: 5242880
     rate-limit-per-hour: 20
+  rate-limit:
+    enabled: false
 
 springdoc:
   api-docs:

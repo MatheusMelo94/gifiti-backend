@@ -77,7 +77,7 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
-     * Login and return the access token.
+     * Login and return the access token (extracted from the access_token cookie).
      */
     protected String loginAndGetToken(String email, String password) throws Exception {
         LoginRequest request = LoginRequest.builder()
@@ -91,11 +91,17 @@ public abstract class BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
+        // The JWT is set as an HttpOnly cookie; extract it from the Set-Cookie header
+        jakarta.servlet.http.Cookie accessTokenCookie = result.getResponse().getCookie("access_token");
+        if (accessTokenCookie != null) {
+            return accessTokenCookie.getValue();
+        }
+
+        // Fallback: parse from AuthResponse JSON (for backward-compatibility)
         AuthResponse response = objectMapper.readValue(
                 result.getResponse().getContentAsString(),
                 AuthResponse.class
         );
-
         return response.getAccessToken();
     }
 
