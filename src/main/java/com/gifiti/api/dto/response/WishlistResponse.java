@@ -42,6 +42,9 @@ public class WishlistResponse {
     @Schema(description = "Wishlist category", example = "BIRTHDAY")
     private WishlistCategory category;
 
+    @Schema(description = "Cover image URL", example = "https://pub-abc.r2.dev/users/u1/wishlists/img.jpg")
+    private String coverImageUrl;
+
     @Schema(description = "Number of items in the wishlist", example = "5")
     private int itemCount;
 

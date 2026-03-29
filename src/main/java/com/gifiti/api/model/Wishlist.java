@@ -3,6 +3,7 @@ package com.gifiti.api.model;
 import com.aventrix.jnanoid.jnanoid.NanoIdUtils;
 import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.model.enums.WishlistCategory;
+import com.gifiti.api.validation.SafeUrl;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -55,6 +56,9 @@ public class Wishlist {
     private LocalDate eventDate;
 
     private WishlistCategory category;
+
+    @SafeUrl
+    private String coverImageUrl;
 
     @CreatedDate
     private Instant createdAt;

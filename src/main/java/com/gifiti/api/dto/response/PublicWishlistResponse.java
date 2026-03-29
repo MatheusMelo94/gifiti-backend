@@ -36,6 +36,9 @@ public class PublicWishlistResponse {
     @Schema(description = "Event date", example = "2026-06-15")
     private LocalDate eventDate;
 
+    @Schema(description = "Cover image URL", example = "https://pub-abc.r2.dev/users/u1/wishlists/img.jpg")
+    private String coverImageUrl;
+
     @Schema(description = "Total number of items", example = "5")
     private int itemCount;
 
