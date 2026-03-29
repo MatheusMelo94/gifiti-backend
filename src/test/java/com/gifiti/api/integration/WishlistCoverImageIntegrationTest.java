@@ -3,7 +3,6 @@ package com.gifiti.api.integration;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.model.enums.Visibility;
-import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,7 +13,6 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
-import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 

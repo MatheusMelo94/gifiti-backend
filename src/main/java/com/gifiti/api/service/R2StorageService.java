@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * Handles file uploads to Cloudflare R2 via the S3-compatible API.
@@ -46,8 +46,8 @@ public class R2StorageService {
             String url = publicUrl + "/" + key;
             log.info("Image uploaded to R2: {}", key);
             return url;
-        } catch (S3Exception e) {
-            log.error("Failed to upload image to R2: {}", e.getMessage());
+        } catch (SdkException e) {
+            log.error("Failed to upload image to R2: {} ({})", e.getMessage(), e.getClass().getSimpleName());
             throw new ImageUploadException("Failed to upload image. Please try again.", e);
         }
     }
