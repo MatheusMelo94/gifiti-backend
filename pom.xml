@@ -24,6 +24,19 @@
         <testcontainers.version>1.19.7</testcontainers.version>
     </properties>
 
+    <!-- Add this block BEFORE <dependencies> -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>2.25.11</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- Core Spring Boot -->
         <dependency>
@@ -120,6 +133,12 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
             <version>3.1.8</version>
+        </dependency>
+
+        <!-- AWS S3 SDK (S3-compatible — used for Cloudflare R2) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
         </dependency>
 
         <!-- Testing -->
