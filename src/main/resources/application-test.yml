@@ -16,6 +16,15 @@ app:
     api-key: test-api-key
   swagger:
     enabled: true
+  r2:
+    access-key-id: test-access-key
+    secret-access-key: test-secret-key
+    endpoint: https://test.r2.cloudflarestorage.com
+    bucket-name: test-bucket
+    public-url: https://test-public.r2.dev
+  upload:
+    max-file-size: 5242880
+    rate-limit-per-hour: 20
 
 springdoc:
   api-docs:

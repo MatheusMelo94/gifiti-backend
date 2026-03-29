@@ -8,8 +8,8 @@ spring:
   # Request size limits to prevent DoS attacks
   servlet:
     multipart:
-      max-file-size: 1MB
-      max-request-size: 1MB
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 jwt:
   # SECURITY: No default value - JWT_SECRET must be set via environment variable
@@ -28,8 +28,8 @@ server:
     include-exception: false
   # Request size limits
   tomcat:
-    max-http-form-post-size: 1MB
-    max-swallow-size: 1MB
+    max-http-form-post-size: 5MB
+    max-swallow-size: 5MB
 
 # CORS configuration - override for production
 cors:
@@ -82,6 +82,15 @@ app:
     secure: ${APP_COOKIE_SECURE:true}
     same-site: ${APP_COOKIE_SAME_SITE:Lax}
     domain: ${APP_COOKIE_DOMAIN:}
+  r2:
+    access-key-id: ${R2_ACCESS_KEY_ID}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY}
+    endpoint: ${R2_ENDPOINT}
+    bucket-name: ${R2_BUCKET_NAME}
+    public-url: ${R2_PUBLIC_URL}
+  upload:
+    max-file-size: 5242880
+    rate-limit-per-hour: 20
 
 logging:
   level:
