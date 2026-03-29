@@ -27,6 +27,7 @@ public class WishlistMapper {
                 .visibility(request.getVisibility())
                 .eventDate(request.getEventDate())
                 .category(request.getCategory())
+                .coverImageUrl(request.getCoverImageUrl())
                 .build();
     }
 
@@ -46,6 +47,7 @@ public class WishlistMapper {
                 .shareableId(wishlist.getShareableId())
                 .eventDate(wishlist.getEventDate())
                 .category(wishlist.getCategory())
+                .coverImageUrl(wishlist.getCoverImageUrl())
                 .itemCount(itemCount)
                 .createdAt(wishlist.getCreatedAt())
                 .updatedAt(wishlist.getUpdatedAt())
@@ -74,6 +76,13 @@ public class WishlistMapper {
         }
         if (request.getCategory() != null) {
             wishlist.setCategory(request.getCategory());
+        }
+        if (request.getCoverImageUrl() != null) {
+            if (request.getCoverImageUrl().isBlank()) {
+                wishlist.setCoverImageUrl(null); // Empty string = remove
+            } else {
+                wishlist.setCoverImageUrl(request.getCoverImageUrl());
+            }
         }
     }
 }
