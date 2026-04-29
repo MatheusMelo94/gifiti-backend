@@ -30,7 +30,11 @@ jobs:
   build-test:
     name: Build & Test (Java 21)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 35 min: integration suite takes ~25-30 min on ubuntu-latest. Each
+    # @SpringBootTest restarts the Spring context, which dominates wall time.
+    # Local M-series finishes in ~20 min; CI runner is ~1.5x slower for JVM
+    # workloads. Re-evaluate if/when the suite grows or context-caching lands.
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -51,8 +55,12 @@ jobs:
         # Docker, which is preinstalled on ubuntu-latest GitHub runners.
         run: ./mvnw --batch-mode --no-transfer-progress verify
 
-      - name: Upload Surefire reports on failure
-        if: failure()
+      - name: Upload Surefire reports on failure or cancellation
+        # `always()` covers success/failure/cancelled. We want reports on
+        # cancellation too because GitHub's `failure()` does not fire when the
+        # runner kills the job for timeout — and that's exactly when we most
+        # need the partial reports for diagnosis.
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: surefire-reports
