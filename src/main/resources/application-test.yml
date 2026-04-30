@@ -3,9 +3,6 @@ spring:
     mongodb:
       # URI is set dynamically by Testcontainers
       auto-index-creation: true
-  mail:
-    host: localhost
-    port: 25
 
 jwt:
   secret: test-secret-key-for-testing-minimum-32-characters
@@ -13,8 +10,23 @@ jwt:
   refresh-expiration: 604800000
 
 app:
+  google:
+    client-id: test-google-client-id
+  resend:
+    api-key: test-api-key
   swagger:
     enabled: true
+  r2:
+    access-key-id: test-access-key
+    secret-access-key: test-secret-key
+    endpoint: https://test.r2.cloudflarestorage.com
+    bucket-name: test-bucket
+    public-url: https://test-public.r2.dev
+  upload:
+    max-file-size: 5242880
+    rate-limit-per-hour: 20
+  rate-limit:
+    enabled: false
 
 springdoc:
   api-docs:

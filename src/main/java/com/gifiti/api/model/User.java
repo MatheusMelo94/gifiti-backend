@@ -1,5 +1,6 @@
 package com.gifiti.api.model;
 
+import com.gifiti.api.model.enums.AuthProvider;
 import com.gifiti.api.model.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -38,7 +39,6 @@ public class User {
     @Email(message = "Email must be valid")
     private String email;
 
-    @NotBlank(message = "Password is required")
     private String password;
 
     @Size(max = 50, message = "Display name must not exceed 50 characters")
@@ -54,6 +54,14 @@ public class User {
     @Indexed(unique = true, sparse = true)
     private String passwordResetToken;
     private Instant passwordResetTokenExpiry;
+
+    @Indexed(unique = true, sparse = true)
+    private String googleId;
+
+    private String profilePictureUrl;
+
+    @Builder.Default
+    private AuthProvider authProvider = AuthProvider.LOCAL;
 
     @NotNull
     @Builder.Default

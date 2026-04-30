@@ -117,6 +117,15 @@ public class SecurityConfig {
                 })
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        // Return 401 for unauthenticated requests (no valid JWT)
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(org.springframework.http.HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType("application/json");
+                            response.getWriter().write("""
+                                    {"status":401,"error":"Unauthorized","message":"Authentication required"}
+                                    """);
+                        }))
                 .authorizeHttpRequests(auth -> auth
                         // Public authentication endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()

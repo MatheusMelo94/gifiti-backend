@@ -72,6 +72,7 @@ public class PublicWishlistService {
                 .shareableId(wishlist.getShareableId())
                 .title(wishlist.getTitle())
                 .description(wishlist.getDescription())
+                .coverImageUrl(wishlist.getCoverImageUrl())
                 .ownerDisplayName(ownerDisplayName)
                 .eventDate(wishlist.getEventDate())
                 .itemCount(publicItems.size())

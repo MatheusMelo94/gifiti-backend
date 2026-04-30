@@ -29,6 +29,9 @@ public class ProfileResponse {
     @Schema(description = "Display name", example = "Maria Santos")
     private String displayName;
 
+    @Schema(description = "Profile picture URL")
+    private String profilePictureUrl;
+
     @Schema(description = "User roles", example = "[\"USER\"]")
     private Set<Role> roles;
 

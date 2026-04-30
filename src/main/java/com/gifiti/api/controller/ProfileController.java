@@ -1,17 +1,22 @@
 package com.gifiti.api.controller;
 
+import com.gifiti.api.dto.request.SetPasswordRequest;
 import com.gifiti.api.dto.request.UpdateProfileRequest;
+import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.dto.response.ProfileResponse;
 import com.gifiti.api.service.ProfileService;
+import com.gifiti.api.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final UserService userService;
 
     @Operation(summary = "Get current user's profile")
     @GetMapping
@@ -44,6 +50,15 @@ public class ProfileController {
             Authentication authentication,
             @Valid @RequestBody UpdateProfileRequest request) {
         ProfileResponse response = profileService.updateProfile(authentication.getName(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Set password for Google-only account")
+    @PostMapping(path = "/set-password", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<MessageResponse> setPassword(
+            Authentication authentication,
+            @Valid @RequestBody SetPasswordRequest request) {
+        MessageResponse response = userService.setPassword(authentication.getName(), request.getNewPassword());
         return ResponseEntity.ok(response);
     }
 }

@@ -177,6 +177,7 @@ public class GifterService {
                             .shareableId(wishlist.getShareableId())
                             .title(wishlist.getTitle())
                             .ownerDisplayName(resolveOwnerDisplayName(wishlist.getOwnerUserId()))
+                            .coverImageUrl(wishlist.getCoverImageUrl())
                             .eventDate(wishlist.getEventDate())
                             .itemCount(itemCount)
                             .myReservationCount(myReservationCount)

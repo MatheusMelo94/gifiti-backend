@@ -3,6 +3,7 @@ package com.gifiti.api.dto.request;
 import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.model.enums.WishlistCategory;
 import com.gifiti.api.validation.NoHtml;
+import com.gifiti.api.validation.SafeUrl;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -43,4 +44,8 @@ public class CreateWishlistRequest {
 
     @Schema(description = "Optional category", example = "BIRTHDAY")
     private WishlistCategory category;
+
+    @SafeUrl
+    @Schema(description = "Optional cover image URL", example = "https://pub-abc.r2.dev/users/u1/wishlists/img.jpg")
+    private String coverImageUrl;
 }

@@ -30,7 +30,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
-                .password(user.getPassword())
+                .password(user.getPassword() != null ? user.getPassword() : "{OAUTH}")
                 .authorities(user.getRoles().stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
                         .collect(Collectors.toList()))

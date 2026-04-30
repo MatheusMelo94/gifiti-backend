@@ -10,6 +10,7 @@ import com.gifiti.api.exception.ConflictException;
 import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.BlacklistedToken;
 import com.gifiti.api.model.User;
+import com.gifiti.api.model.enums.AuthProvider;
 import com.gifiti.api.model.enums.Role;
 import com.gifiti.api.repository.BlacklistedTokenRepository;
 import com.gifiti.api.repository.UserRepository;
@@ -55,6 +56,7 @@ public class AuthService {
     private final AccountLockoutService accountLockoutService;
     private final PasswordValidationService passwordValidationService;
     private final EmailService emailService;
+    private final GoogleTokenVerifierService googleTokenVerifierService;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -159,6 +161,7 @@ public class AuthService {
                             .id(user.getId())
                             .email(user.getEmail())
                             .displayName(user.getDisplayName())
+                            .profilePictureUrl(user.getProfilePictureUrl())
                             .roles(user.getRoles())
                             .build())
                     .accessToken(accessToken)
@@ -224,6 +227,7 @@ public class AuthService {
                         .id(user.getId())
                         .email(user.getEmail())
                         .displayName(user.getDisplayName())
+                        .profilePictureUrl(user.getProfilePictureUrl())
                         .roles(user.getRoles())
                         .build())
                 .accessToken(newAccessToken)
@@ -312,14 +316,107 @@ public class AuthService {
         return MessageResponse.builder().message("Password has been reset successfully").build();
     }
 
+    public AuthResponse loginWithGoogle(String idToken) {
+        GoogleTokenVerifierService.GoogleUserInfo googleUser = googleTokenVerifierService.verify(idToken);
+        if (googleUser == null) {
+            throw new UnauthorizedException("Invalid Google credentials");
+        }
+
+        if (!googleUser.emailVerified()) {
+            log.warn("SECURITY_EVENT: Google login rejected — email not verified: {}", googleUser.email());
+            throw new UnauthorizedException("Google account email not verified");
+        }
+
+        String email = normalizeEmail(googleUser.email());
+        User user;
+
+        // 1. Find by Google ID (returning user)
+        Optional<User> byGoogleId = userRepository.findByGoogleId(googleUser.googleId());
+        if (byGoogleId.isPresent()) {
+            user = byGoogleId.get();
+            boolean changed = false;
+            // Handle email change on Google side
+            if (!email.equals(user.getEmail()) && !userRepository.existsByEmail(email)) {
+                user.setEmail(email);
+                changed = true;
+            }
+            // Refresh profile picture
+            if (googleUser.picture() != null && !googleUser.picture().equals(user.getProfilePictureUrl())) {
+                user.setProfilePictureUrl(googleUser.picture());
+                changed = true;
+            }
+            if (changed) {
+                userRepository.save(user);
+                log.info("Updated profile for Google user: {}", user.getId());
+            }
+        } else {
+            // 2. Find by email (link or create)
+            Optional<User> byEmail = userRepository.findByEmail(email);
+            if (byEmail.isPresent()) {
+                user = byEmail.get();
+                user.setGoogleId(googleUser.googleId());
+                user.setProfilePictureUrl(googleUser.picture());
+                if (user.isEmailVerified()) {
+                    // Verified local user — link accounts
+                    user.setAuthProvider(AuthProvider.BOTH);
+                    log.info("Linked Google account to verified user: {}", email);
+                } else {
+                    // Unverified local user — Google takes over
+                    user.setAuthProvider(AuthProvider.GOOGLE);
+                    user.setEmailVerified(true);
+                    user.setPassword(null);
+                    log.info("Google account took over unverified user: {}", email);
+                }
+                userRepository.save(user);
+            } else {
+                // 3. New user
+                String displayName = googleUser.name();
+                if (displayName == null || displayName.isBlank()) {
+                    displayName = email.split("@")[0];
+                }
+
+                user = User.builder()
+                        .email(email)
+                        .googleId(googleUser.googleId())
+                        .authProvider(AuthProvider.GOOGLE)
+                        .displayName(displayName)
+                        .profilePictureUrl(googleUser.picture())
+                        .emailVerified(true)
+                        .roles(Set.of(Role.USER))
+                        .build();
+
+                try {
+                    user = userRepository.save(user);
+                    log.info("Created new Google user: {}", email);
+                } catch (org.springframework.dao.DuplicateKeyException e) {
+                    throw new ConflictException("Email already registered");
+                }
+            }
+        }
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getEmail());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail());
+
+        log.info("Google login successful for: {}", email);
+
+        return AuthResponse.builder()
+                .user(AuthResponse.UserInfo.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .displayName(user.getDisplayName())
+                        .profilePictureUrl(user.getProfilePictureUrl())
+                        .roles(user.getRoles())
+                        .build())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .expiresIn(jwtTokenProvider.getAccessTokenExpirationInSeconds())
+                .build();
+    }
+
     private void sendVerificationEmail(String email, String token) {
         String verifyUrl = baseUrl + "/verify-email?token=" + token;
-        String body = "<h2>Welcome to Gifiti!</h2>"
-                + "<p>Thanks for signing up. Please confirm your email address by clicking the link below:</p>"
-                + "<p><a href=\"" + verifyUrl + "\">Confirm Email Address</a></p>"
-                + "<p>This link expires in 24 hours.</p>"
-                + "<p>If you didn't create a Gifiti account, you can safely ignore this email.</p>";
-        emailService.send(email, "Welcome to Gifiti - Please confirm your email", body);
+        emailService.send(email, "Welcome to Gifiti - Please confirm your email",
+                EmailTemplates.verification(verifyUrl));
     }
 
     /**
@@ -369,10 +466,7 @@ public class AuthService {
 
     private void sendPasswordResetEmail(String email, String token) {
         String resetUrl = baseUrl + "/reset-password?token=" + token;
-        String body = "<h2>Reset your Gifiti password</h2>"
-                + "<p>Click the link below to reset your password:</p>"
-                + "<p><a href=\"" + resetUrl + "\">Reset Password</a></p>"
-                + "<p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>";
-        emailService.send(email, "Reset your Gifiti password", body);
+        emailService.send(email, "Reset your Gifiti password",
+                EmailTemplates.passwordReset(resetUrl));
     }
 }
