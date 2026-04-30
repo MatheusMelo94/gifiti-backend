@@ -1,0 +1,105 @@
+# Render Blueprint for gifiti-backend — STAGING ONLY (intentional scope).
+# Cite: devops-conventions.md § Project Setup
+# Cite: architecture-conventions.md § Multi-target Deployment
+#
+# Why staging-only (not staging+prod): the existing prod service
+# (`gifiti-backend`, Oregon, Starter, currently serving real users) was
+# created manually before this blueprint existed. Adopting it into the
+# blueprint requires a careful name/setting reconciliation that's not worth
+# the risk while it's healthy. We'll bring prod into the blueprint in a
+# future PR when we add the manual prod-deploy workflow (Step 5 of the
+# DevOps remediation plan). For tonight, this blueprint creates only the
+# new staging service and leaves prod untouched.
+#
+# What this file is: the version-controlled SHAPE of the staging Render
+# service. It declares service name, region, plan, build/start commands,
+# healthcheck path, and the LIST OF ENV VAR KEYS the service expects. It
+# does NOT declare values for secrets — those are pasted into the Render
+# Dashboard ("sync: false" tells Render to source the value from the
+# dashboard rather than from this file).
+#
+# Pattern (per § Secrets Integration at MVP posture): version the keys,
+# never the values. Secrets-vendor decision (Doppler/Infisical/etc.) is
+# deferred per user posture; Render Dashboard env vars are the system of
+# record for secret values today.
+#
+# What you MUST do in the Render dashboard after applying this blueprint:
+#   1. Connect this repo to Render (Blueprints > New Blueprint Instance).
+#   2. Render creates the staging service. It will FAIL TO BOOT until step 3.
+#   3. Open the new staging service > Environment > Edit and paste values
+#      for every env var below that has `sync: false`. See
+#      docs/deploys/staging-setup.md for guidance per-var.
+#   4. Confirm the service deploys cleanly and `/actuator/health` returns 200.
+#
+# Values that MUST differ between staging and prod (do not copy/paste blindly
+# from your prod env vars — that defeats the whole point of staging):
+#   - MONGODB_URI         → separate Atlas cluster (free M0 is fine)
+#   - APP_BASE_URL        → staging frontend URL (or prod URL if no staging FE yet)
+#   - CORS_ALLOWED_ORIGINS→ staging origins
+#   - R2_BUCKET_NAME      → separate bucket (e.g. gifiti-user-uploads-staging)
+#   - R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY → API token scoped to staging bucket only
+#   - R2_PUBLIC_URL       → matches the staging bucket
+#   - APP_COOKIE_DOMAIN   → staging domain
+#   - GOOGLE_CLIENT_ID    → distinct OAuth client (recommended; reuse OK at MVP)
+#   - JWT_SECRET          → independent secret (any 32+ char random string)
+#   - RESEND_API_KEY      → test key or separate sending domain
+#   - MAIL_FROM           → e.g. hello@staging.ggifiti.com
+#
+# Values that match prod (HTTPS hardening applies in both environments):
+#   - APP_COOKIE_SECURE=true
+#   - APP_COOKIE_SAME_SITE=Lax
+
+services:
+  # -------------------- STAGING --------------------
+  - type: web
+    name: gifiti-backend-staging
+    runtime: docker
+    region: oregon          # matches existing prod region (verified)
+    plan: starter           # matches existing prod plan
+    branch: main            # auto-deploy on every merge to main
+    autoDeploy: true
+    previewsEnabled: false  # no per-PR ephemeral envs at MVP
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: staging
+      - key: PORT
+        value: 8080
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: SWAGGER_ENABLED
+        value: "true"
+      - key: APP_BASE_URL
+        sync: false
+      - key: APP_COOKIE_SECURE
+        value: "true"
+      - key: APP_COOKIE_SAME_SITE
+        value: Lax
+      - key: APP_COOKIE_DOMAIN
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+
+# Prod service is intentionally NOT declared here — see header comment.
+# The existing `gifiti-backend` service (Oregon / Starter) continues to be
+# managed manually via the Render Dashboard. Adopting it into this blueprint
+# is a planned later step (paired with the manual prod-deploy workflow).
