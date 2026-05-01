@@ -1,0 +1,32 @@
+# Production profile overrides.
+# Cite: devops-conventions.md § Environment Model
+#
+# Inherits everything from application.yml. Activate by setting
+# SPRING_PROFILES_ACTIVE=prod (set automatically by render.yaml for the
+# prod service).
+
+# Swagger MUST be off in prod regardless of env var (defense-in-depth). The
+# base file defaults SWAGGER_ENABLED to false, but we hard-set false here so
+# a misconfigured env var cannot accidentally expose the API surface.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  swagger:
+    enabled: false
+
+# Logging in prod: INFO root, no DEBUG noise.
+logging:
+  level:
+    root: INFO
+    com.gifiti.api: INFO
+    org.springframework.security: WARN
+  # TODO(backend-architect): pick a structured JSON logging encoder for prod
+  # (logstash-logback-encoder, ecs-logging-java, or Spring Boot 3.4's
+  # structured-logging support). DevOps does NOT pick the encoder — that's
+  # an architectural decision. See devops-conventions.md § Logging
+  # (routes to backend-architect.md). Until then, prod logs use the same
+  # human-readable pattern as base application.yml.
