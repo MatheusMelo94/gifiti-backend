@@ -58,7 +58,6 @@ services:
     plan: starter           # matches existing prod plan
     branch: main            # auto-deploy on every merge to main
     autoDeploy: true
-    previewsEnabled: false  # no per-PR ephemeral envs at MVP
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
     envVars:
