@@ -1,0 +1,56 @@
+# Manual production deploy.
+# Cite: devops-conventions.md § CI Pipeline Shape
+#
+# Prod is NEVER auto-deployed (per § CI Pipeline Shape: "manual prod
+# promotion gate"). To deploy, go to:
+#   GitHub > Actions > "Deploy to Production" > Run workflow
+# Type PROD into the confirmation field. Anything else aborts.
+#
+# Prerequisite: a Deploy Checklist (docs/deploys/YYYY-MM-DD_*.md) with
+# upstream gates (Code Reviewer APPROVE, QA PASS, Security sign-off) and own
+# readiness checks marked GO. Producing the checklist is the DevOps
+# Engineer's job; clicking the button is the user's job.
+#
+# Injection safety: the user-supplied `confirm` input is read into an env
+# var and compared with [[ ... ]] inside the shell — never interpolated
+# directly into the run: body via ${{ ... }}.
+
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PROD to confirm production deploy'
+        required: true
+        default: ''
+        type: string
+
+jobs:
+  deploy-prod:
+    name: Trigger Render prod deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Verify confirmation
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          if [[ "${CONFIRM}" != "PROD" ]]; then
+            echo "::error::Confirmation must be exactly 'PROD'. Aborting."
+            exit 1
+          fi
+          echo "Confirmation accepted. Proceeding."
+
+      - name: Fire Render deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_PROD_DEPLOY_HOOK_URL }}
+        run: |
+          if [[ -z "${DEPLOY_HOOK_URL}" ]]; then
+            echo "::error::RENDER_PROD_DEPLOY_HOOK_URL secret is not set."
+            echo "See docs/deploys/staging-setup.md Step 7."
+            exit 1
+          fi
+          curl -fsS -X POST "${DEPLOY_HOOK_URL}"
+          echo "Render prod deploy triggered. Watch the Render dashboard for build status."

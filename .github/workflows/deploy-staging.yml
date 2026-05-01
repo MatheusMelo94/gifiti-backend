@@ -1,0 +1,45 @@
+# Auto-deploy to Render staging when CI passes on main.
+# Cite: devops-conventions.md § CI Pipeline Shape
+#
+# Triggers via Render Deploy Hook. The hook URL is held in the repo secret
+# RENDER_STAGING_DEPLOY_HOOK_URL (see docs/deploys/staging-setup.md Step 7).
+#
+# This workflow does NOT rebuild or retest — CI already did. It only fires
+# the Render webhook, which causes Render to pull the latest main commit
+# and rebuild from the repo Dockerfile.
+#
+# Injection safety: no user-controlled fields are interpolated into run:
+# blocks. Secrets are passed via env:.
+
+name: Deploy to Staging
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy-staging:
+    name: Trigger Render staging deploy
+    # Only proceed if CI succeeded on main. workflow_run fires regardless of
+    # outcome, so we gate explicitly.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Fire Render deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK_URL }}
+        run: |
+          if [[ -z "${DEPLOY_HOOK_URL}" ]]; then
+            echo "::error::RENDER_STAGING_DEPLOY_HOOK_URL secret is not set."
+            echo "See docs/deploys/staging-setup.md Step 7."
+            exit 1
+          fi
+          # -fsS: fail on HTTP error, silent except on error, show errors.
+          curl -fsS -X POST "${DEPLOY_HOOK_URL}"
+          echo "Render staging deploy triggered."
