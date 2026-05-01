@@ -1,0 +1,27 @@
+# Staging profile overrides.
+# Cite: devops-conventions.md § Environment Model
+#
+# Inherits everything from application.yml. Only the keys below override the
+# base. Activate by setting SPRING_PROFILES_ACTIVE=staging (set automatically
+# by render.yaml for the staging service).
+
+# Swagger ON in staging — used for manual API exploration before promoting
+# to prod. The base application.yml already keys these to ${SWAGGER_ENABLED}
+# with default false; we hard-set staging to true here so it survives even
+# if the env var is missing.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+app:
+  swagger:
+    enabled: true
+
+# Slightly more verbose logging in staging to make defect-hunting easier.
+logging:
+  level:
+    root: INFO
+    com.gifiti.api: DEBUG
+    org.springframework.security: INFO
