@@ -1,13 +1,10 @@
 package com.gifiti.api.config;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import com.gifiti.api.repository.UserRepository;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.ResourceBundleMessageSource;
-import org.springframework.lang.NonNull;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.servlet.LocaleResolver;
 
@@ -28,10 +25,10 @@ import java.util.Locale;
  *       {@code @NotBlank(message = "{validation.x.notblank}")} resolve through the
  *       project {@link MessageSource}. This is the load-bearing wiring for Risk #1
  *       in {@code specs/005-i18n-backend-support/plan.md}.</li>
- *   <li>{@link LocaleResolver} — placeholder returning {@link Locale#US} always.
- *       The real precedence-chain resolver
- *       ({@code Accept-Language} → user preference → default) lands in Task 3
- *       ({@code GifitiLocaleResolver}).</li>
+ *   <li>{@link LocaleResolver} — {@link GifitiLocaleResolver} implementing the
+ *       precedence chain {@code Accept-Language} header → authenticated user's
+ *       {@code preferredLanguage} → {@code en-US} default
+ *       (spec criteria #1-4 of {@code 005-i18n-backend-support}).</li>
  * </ul>
  *
  * <p>Conventions: {@code architecture-conventions.md § Package Layout} (config/),
@@ -87,41 +84,20 @@ public class I18nConfig {
     }
 
     /**
-     * Placeholder {@link LocaleResolver} — always returns {@link Locale#US}.
+     * Request-locale resolver implementing the precedence chain from spec criteria #1-4:
+     * {@code Accept-Language} header → authenticated principal's
+     * {@code User.preferredLanguage} → {@code en-US} default.
      *
-     * <p>Replaced in Task 3 by {@code GifitiLocaleResolver} which implements the
-     * spec'd precedence chain: {@code Accept-Language} header → authenticated
-     * principal's {@code User.preferredLanguage} → en-US default. Declaring the bean
-     * here (rather than waiting for Task 3) keeps Spring's locale-resolution
-     * machinery wired today, which lets follow-up tasks layer in behavior without
-     * touching the bean wiring.</p>
-     *
-     * <p>{@code setLocale} throws {@link UnsupportedOperationException} — locale
-     * changes happen via the user's profile-update endpoint (Task 9), not via
+     * <p>{@code setLocale} on the resolver throws {@link UnsupportedOperationException} —
+     * locale changes happen via the user's profile-update endpoint (Task 9), not via
      * Spring's locale-change interceptor.</p>
+     *
+     * <p>Depends on {@link UserRepository} to resolve the authenticated principal
+     * (carried as the user's email on the {@code SecurityContext}) to its stored
+     * {@code preferredLanguage}.</p>
      */
     @Bean
-    LocaleResolver localeResolver() {
-        return new FixedDefaultLocaleResolver();
-    }
-
-    /**
-     * Package-private placeholder. Removed when {@code GifitiLocaleResolver} lands in Task 3.
-     */
-    static class FixedDefaultLocaleResolver implements LocaleResolver {
-
-        @Override
-        @NonNull
-        public Locale resolveLocale(@NonNull HttpServletRequest request) {
-            return Locale.US;
-        }
-
-        @Override
-        public void setLocale(@NonNull HttpServletRequest request,
-                              @Nullable HttpServletResponse response,
-                              @Nullable Locale locale) {
-            throw new UnsupportedOperationException(
-                    "Locale changes happen via profile update, not via LocaleResolver.setLocale().");
-        }
+    LocaleResolver localeResolver(UserRepository userRepository) {
+        return new GifitiLocaleResolver(userRepository);
     }
 }

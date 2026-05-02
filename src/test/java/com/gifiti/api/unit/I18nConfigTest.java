@@ -1,6 +1,7 @@
 package com.gifiti.api.unit;
 
 import com.gifiti.api.config.I18nConfig;
+import com.gifiti.api.repository.UserRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotBlank;
@@ -10,10 +11,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.NoSuchMessageException;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.servlet.LocaleResolver;
+
+import static org.mockito.Mockito.mock;
 
 import java.util.Locale;
 import java.util.Set;
@@ -32,8 +37,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * project {@link MessageSource} via {@link LocalValidatorFactoryBean}.</p>
  */
 @ExtendWith(SpringExtension.class)
-@SpringJUnitConfig(classes = I18nConfig.class)
+@SpringJUnitConfig(classes = {I18nConfig.class, I18nConfigTest.MockRepoConfig.class})
 class I18nConfigTest {
+
+    /**
+     * Test-only configuration providing a Mockito {@link UserRepository} so the
+     * {@link I18nConfig#localeResolver(UserRepository)} bean can be instantiated
+     * inside this lightweight Spring slice without pulling in Spring Data MongoDB.
+     */
+    @Configuration
+    static class MockRepoConfig {
+        @Bean
+        UserRepository userRepository() {
+            return mock(UserRepository.class);
+        }
+    }
 
     @Autowired
     private MessageSource messageSource;
@@ -102,10 +120,10 @@ class I18nConfigTest {
     }
 
     @Test
-    @DisplayName("localeResolver bean is registered (placeholder until Task 3)")
+    @DisplayName("localeResolver bean is registered")
     void localeResolver_bean_is_present() {
-        // Per tasks.md line 65: I18nConfig declares a placeholder LocaleResolver returning
-        // Locale.US always. Real precedence-chain resolver lands in Task 3.
+        // Behavior of the resolver itself (precedence chain) is exercised in
+        // GifitiLocaleResolverTest. This assertion only pins that the bean wiring exists.
         assertThat(localeResolver).isNotNull();
     }
 
