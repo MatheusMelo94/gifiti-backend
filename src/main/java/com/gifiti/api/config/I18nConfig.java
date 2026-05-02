@@ -59,7 +59,7 @@ public class I18nConfig {
      * </ul>
      */
     @Bean
-    public MessageSource messageSource() {
+    MessageSource messageSource() {
         ResourceBundleMessageSource source = new ResourceBundleMessageSource();
         source.setBasename("messages");
         source.setDefaultEncoding(StandardCharsets.UTF_8.name());
@@ -80,7 +80,7 @@ public class I18nConfig {
      * {@code LocaleContextHolder} once {@code GifitiLocaleResolver} (Task 3) is in place.</p>
      */
     @Bean
-    public LocalValidatorFactoryBean validator(MessageSource messageSource) {
+    LocalValidatorFactoryBean validator(MessageSource messageSource) {
         LocalValidatorFactoryBean factory = new LocalValidatorFactoryBean();
         factory.setValidationMessageSource(messageSource);
         return factory;
@@ -101,7 +101,7 @@ public class I18nConfig {
      * Spring's locale-change interceptor.</p>
      */
     @Bean
-    public LocaleResolver localeResolver() {
+    LocaleResolver localeResolver() {
         return new FixedDefaultLocaleResolver();
     }
 
