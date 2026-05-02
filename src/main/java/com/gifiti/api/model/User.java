@@ -1,6 +1,7 @@
 package com.gifiti.api.model;
 
 import com.gifiti.api.model.enums.AuthProvider;
+import com.gifiti.api.model.enums.Language;
 import com.gifiti.api.model.enums.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -67,9 +68,37 @@ public class User {
     @Builder.Default
     private Set<Role> roles = new HashSet<>(Set.of(Role.USER));
 
+    /**
+     * The user's preferred UI language for system-generated strings (validation
+     * errors, exception messages, success messages, emails).
+     *
+     * <p>Intentionally nullable with no {@code @Builder.Default} and no
+     * {@code @NotNull}: legacy User documents written before the i18n feature
+     * shipped do not have this field. Spec criterion #15 + ADR-0001 require
+     * those documents to remain readable as-is and to be treated as
+     * {@link Language#EN_US} on read without rewriting the document.
+     *
+     * <p>Read via {@link #effectiveLanguage()}, never directly, when callers
+     * need a non-null language.
+     */
+    private Language preferredLanguage;
+
     @CreatedDate
     private Instant createdAt;
 
     @LastModifiedDate
     private Instant updatedAt;
+
+    /**
+     * The language to use for this user, with the lazy default applied.
+     *
+     * <p>Returns {@link #preferredLanguage} if set, otherwise {@link Language#EN_US}.
+     * This is the only sanctioned way to read a non-null {@link Language} for a
+     * user — preserves the spec criterion #15 invariant that a missing
+     * {@code preferredLanguage} field is treated as {@code EN_US} without
+     * silently rewriting the persisted document.
+     */
+    public Language effectiveLanguage() {
+        return preferredLanguage != null ? preferredLanguage : Language.EN_US;
+    }
 }
