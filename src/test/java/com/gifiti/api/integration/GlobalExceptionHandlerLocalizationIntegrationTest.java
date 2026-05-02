@@ -16,9 +16,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code ResourceNotFoundException} through {@code MessageSource} using that
  * locale, and the wire response carries the locale-specific text.
  *
- * <p>The pt-BR bundle still uses {@code [TODO pt-BR]} placeholders pending
- * Task 12; the assertion is therefore "the message is the placeholder string,
- * not the English one" — i.e. the locale plumbing chose the right bundle.
+ * <p>The pt-BR bundle still contains placeholder strings; real Portuguese
+ * translations land in Task 12. The assertion is therefore "the message is
+ * the placeholder string, not the English one" — i.e. the locale plumbing
+ * chose the right bundle.
  *
  * <p>Lives in {@code com.gifiti.api.integration.*}, which the CI workflow
  * temporarily excludes via {@code -Dtest='!com.gifiti.api.integration.*Test'}.
