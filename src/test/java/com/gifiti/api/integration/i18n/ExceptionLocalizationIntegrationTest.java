@@ -260,9 +260,9 @@ class ExceptionLocalizationIntegrationTest extends BaseIntegrationTest {
      * found-vs-not-found accounts, and (b) no {@code @} character that would
      * leak an email address.
      *
-     * <p>Today the pt-BR values are still {@code [TODO pt-BR]} + English source.
-     * The placeholder prefix is 11 chars, so length is biased high — the test
-     * passes today against placeholders (within +30% for messages of the
+     * <p>Today the pt-BR values still carry the placeholder prefix plus the
+     * English source. The prefix is 11 chars, so length is biased high — the
+     * test passes today against placeholders (within +30% for messages of the
      * lengths used) AND must continue to pass after Task 12 substitutes real
      * translations following the SECURITY discipline comments in the bundles.
      *
@@ -298,7 +298,7 @@ class ExceptionLocalizationIntegrationTest extends BaseIntegrationTest {
             assertThat(pt).as("F-1: pt-BR key %s must not contain '@'", key).doesNotContain("@");
 
             // F-1: length within ±30% of en-US source. Today pt-BR values
-            // still carry the "[TODO pt-BR] " prefix (Task 12 substitutes the
+            // still carry the placeholder prefix (Task 12 substitutes the
             // real translation and removes the prefix); strip it here so the
             // test guards against translator drift in the actual content,
             // not placeholder bookkeeping. After Task 12 the strip is a no-op.
