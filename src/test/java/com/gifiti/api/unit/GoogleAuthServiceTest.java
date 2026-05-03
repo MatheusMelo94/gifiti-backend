@@ -235,7 +235,7 @@ class GoogleAuthServiceTest {
             when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
             stubJwtTokens();
 
-            AuthResponse response = authService.loginWithGoogle(ID_TOKEN);
+            authService.loginWithGoogle(ID_TOKEN);
 
             // Email should remain old since new one is taken
             assertThat(existingUser.getEmail()).isEqualTo("old@example.com");
@@ -297,7 +297,7 @@ class GoogleAuthServiceTest {
             when(userRepository.save(any(User.class))).thenReturn(unverifiedUser);
             stubJwtTokens();
 
-            AuthResponse response = authService.loginWithGoogle(ID_TOKEN);
+            authService.loginWithGoogle(ID_TOKEN);
 
             ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(captor.capture());
