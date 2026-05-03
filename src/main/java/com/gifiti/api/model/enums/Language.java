@@ -1,5 +1,8 @@
 package com.gifiti.api.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import java.util.Locale;
 import java.util.Optional;
 
@@ -27,7 +30,12 @@ public enum Language {
 
     /**
      * The BCP-47 language tag (e.g., {@code "en-US"}, {@code "pt-BR"}).
+     *
+     * <p>Annotated {@code @JsonValue} so Jackson serializes a {@link Language}
+     * to its tag rather than the enum constant name. The wire format on the
+     * Gifiti API is the BCP-47 tag (Task 9 of {@code 005-i18n-backend-support}).
      */
+    @JsonValue
     public String getTag() {
         return tag;
     }
@@ -40,6 +48,35 @@ public enum Language {
      */
     public Locale toLocale() {
         return Locale.forLanguageTag(tag);
+    }
+
+    /**
+     * Jackson deserialization entry point. Translates a BCP-47 tag (the wire
+     * format) into the matching {@link Language}, or throws
+     * {@link IllegalArgumentException} for unsupported values.
+     *
+     * <p>Spec criterion #19 of {@code 005-i18n-backend-support}: requests
+     * carrying an unsupported {@code preferredLanguage} value must yield a
+     * 400. Jackson translates the {@link IllegalArgumentException} thrown
+     * here into {@code InvalidFormatException}, which Spring MVC wraps as
+     * {@code HttpMessageNotReadableException}; {@code GlobalExceptionHandler}
+     * resolves that to {@code error.request.malformed} at the configured
+     * locale.
+     *
+     * <p>Distinct from {@link #fromTag(String)} (the {@link Optional}-returning
+     * lookup used by other services) so that the Optional contract there
+     * stays intact for callers that intentionally tolerate unsupported tags
+     * (e.g., {@code GifitiLocaleResolver} fall-through).
+     *
+     * @param tag BCP-47 language tag (e.g., {@code "en-US"}, {@code "pt-BR"}).
+     * @return the matching {@link Language}.
+     * @throws IllegalArgumentException if the tag is {@code null} or not one
+     *                                  of the supported values.
+     */
+    @JsonCreator
+    public static Language fromJsonTag(String tag) {
+        return fromTag(tag).orElseThrow(() -> new IllegalArgumentException(
+                "Unsupported preferredLanguage tag: " + tag));
     }
 
     /**
