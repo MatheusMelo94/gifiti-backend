@@ -297,22 +297,18 @@ class ExceptionLocalizationIntegrationTest extends BaseIntegrationTest {
             assertThat(en).as("F-1: en-US key %s must not contain '@'", key).doesNotContain("@");
             assertThat(pt).as("F-1: pt-BR key %s must not contain '@'", key).doesNotContain("@");
 
-            // F-1: length within ±30% of en-US source. Today pt-BR values
-            // still carry the placeholder prefix (Task 12 substitutes the
-            // real translation and removes the prefix); strip it here so the
-            // test guards against translator drift in the actual content,
-            // not placeholder bookkeeping. After Task 12 the strip is a no-op.
-            String ptContent = pt.startsWith("[TODO pt-BR] ")
-                    ? pt.substring("[TODO pt-BR] ".length())
-                    : pt;
+            // F-1: length within ±30% of en-US source. Translator drift on
+            // anti-enumeration messages can create a length side-channel that
+            // helps attackers distinguish "valid token but expired" from
+            // "invalid token format" by response size.
             int enLen = en.length();
-            int ptLen = ptContent.length();
+            int ptLen = pt.length();
             double minAllowed = enLen * 0.7;
             double maxAllowed = enLen * 1.3;
             assertThat((double) ptLen)
-                    .as("F-1: pt-BR key '%s' content length (%d, after stripping placeholder) "
-                            + "must be within ±30%% of en-US length (%d). Translator drift would "
-                            + "weaken anti-enumeration by length side-channel.",
+                    .as("F-1: pt-BR key '%s' content length (%d) must be within ±30%% "
+                            + "of en-US length (%d). Translator drift would weaken "
+                            + "anti-enumeration by length side-channel.",
                             key, ptLen, enLen)
                     .isBetween(minAllowed, maxAllowed);
         }
