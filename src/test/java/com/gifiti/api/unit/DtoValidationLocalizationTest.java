@@ -35,11 +35,10 @@ import static org.mockito.Mockito.mock;
  * <p>Each test exercises a different annotation type ({@code @Size},
  * {@code @Email}, {@code @NotBlank}, {@code @Pattern}) so the wiring is
  * verified across the breadth of validators used in this codebase. The
- * {@code pt-BR} bundle still contains placeholder strings prefixed with
- * {@code [TODO pt-BR]} (real translations land in Task 12), so the assertion
- * is "the resolved message starts with the placeholder marker AND differs
- * from the English text" — that proves the locale plumbing chose the right
- * bundle.</p>
+ * {@code pt-BR} bundle still contains placeholder strings (real Portuguese
+ * translations land in Task 12), so the assertion is "the resolved message
+ * starts with the placeholder marker AND differs from the English text" —
+ * that proves the locale plumbing chose the right bundle.</p>
  *
  * <p>Lives in {@code com.gifiti.api.unit.*}; loads only {@link I18nConfig}
  * plus a stubbed {@code UserRepository}.</p>
