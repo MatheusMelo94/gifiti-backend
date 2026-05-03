@@ -10,7 +10,6 @@ import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.Reservation;
 import com.gifiti.api.model.SavedWishlist;
-import com.gifiti.api.model.User;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
 import com.gifiti.api.model.enums.ItemStatus;
@@ -22,7 +21,6 @@ import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
