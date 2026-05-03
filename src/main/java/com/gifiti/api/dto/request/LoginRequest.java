@@ -18,12 +18,12 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Login credentials")
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
+    @NotBlank(message = "{validation.shared.email.notblank}")
+    @Email(message = "{validation.shared.email.invalid}")
     @Schema(description = "User email address", example = "jane@example.com")
     private String email;
 
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "{validation.shared.password.notblank}")
     @Schema(description = "User password", example = "MySecureP@ss1")
     private String password;
 }

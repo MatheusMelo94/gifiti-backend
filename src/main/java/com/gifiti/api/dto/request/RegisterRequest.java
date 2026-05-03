@@ -26,22 +26,22 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Registration details for a new user")
 public class RegisterRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
-    @Size(max = 254, message = "Email must not exceed 254 characters")
+    @NotBlank(message = "{validation.shared.email.notblank}")
+    @Email(message = "{validation.shared.email.invalid}")
+    @Size(max = 254, message = "{validation.register.email.size}")
     @Schema(description = "User email address", example = "jane@example.com")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 12, max = 128, message = "Password must be 12-128 characters")
+    @NotBlank(message = "{validation.shared.password.notblank}")
+    @Size(min = 12, max = 128, message = "{validation.shared.password.size}")
     @Pattern(
         regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._#^()\\-+=])[A-Za-z\\d@$!%*?&._#^()\\-+=]{12,}$",
-        message = "Password must contain uppercase, lowercase, digit, and special character (@$!%*?&._#^()-+=)"
+        message = "{validation.shared.password.pattern}"
     )
     @Schema(description = "Password (12-128 chars, must include upper, lower, digit, special)", example = "MySecureP@ss1")
     private String password;
 
-    @Size(max = 50, message = "Display name must not exceed 50 characters")
+    @Size(max = 50, message = "{validation.shared.displayname.size}")
     @NoHtml
     @Schema(description = "Optional display name (derived from email if absent)", example = "Maria Santos")
     private String displayName;

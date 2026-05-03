@@ -24,13 +24,13 @@ import java.time.LocalDate;
 @Schema(description = "Create a new wishlist")
 public class CreateWishlistRequest {
 
-    @NotBlank(message = "Title is required")
-    @Size(max = 100, message = "Title must not exceed 100 characters")
+    @NotBlank(message = "{validation.wishlist.title.notblank}")
+    @Size(max = 100, message = "{validation.shared.wishlist.title.size}")
     @NoHtml
     @Schema(description = "Wishlist title", example = "Birthday 2026")
     private String title;
 
-    @Size(max = 500, message = "Description must not exceed 500 characters")
+    @Size(max = 500, message = "{validation.shared.wishlist.description.size}")
     @NoHtml
     @Schema(description = "Optional description", example = "Things I'd love for my birthday")
     private String description;

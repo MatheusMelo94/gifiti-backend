@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Update profile fields")
 public class UpdateProfileRequest {
 
-    @Size(max = 50, message = "Display name must not exceed 50 characters")
+    @Size(max = 50, message = "{validation.shared.displayname.size}")
     @NoHtml
     @Schema(description = "Display name", example = "Maria Santos")
     private String displayName;
