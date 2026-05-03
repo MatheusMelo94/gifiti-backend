@@ -86,9 +86,11 @@ class DtoValidationLocalizationTest {
                 .build();
         Set<String> messages = messagesOf(validator.validate(dto));
 
+        // pt-BR resolution proven by Portuguese-distinctive substring "Senha"
+        // (Portuguese for "password"; English value uses "Password").
         assertThat(messages)
                 .as("@Size violation for password must resolve via the pt-BR bundle")
-                .anyMatch(m -> m.startsWith("[TODO pt-BR]") && m.contains("12-128"));
+                .anyMatch(m -> m.contains("Senha") && m.contains("12") && m.contains("128"));
         assertThat(messages)
                 .as("Validator must NOT leak the literal {validation.*} key")
                 .noneMatch(m -> m.startsWith("{validation."));
@@ -103,9 +105,10 @@ class DtoValidationLocalizationTest {
                 .build();
         Set<String> messages = messagesOf(validator.validate(dto));
 
+        // pt-BR resolution proven by "deve ser válido" (Portuguese for "must be valid").
         assertThat(messages)
                 .as("@Email violation must resolve via the pt-BR bundle")
-                .anyMatch(m -> m.startsWith("[TODO pt-BR]") && m.contains("Email"));
+                .anyMatch(m -> m.contains("deve ser válido"));
     }
 
     @Test
@@ -114,9 +117,10 @@ class DtoValidationLocalizationTest {
         CreateWishlistRequest dto = CreateWishlistRequest.builder().title("").build();
         Set<String> messages = messagesOf(validator.validate(dto));
 
+        // pt-BR resolution proven by "Título" (Portuguese for "Title").
         assertThat(messages)
                 .as("@NotBlank violation on wishlist title must resolve via the pt-BR bundle")
-                .anyMatch(m -> m.startsWith("[TODO pt-BR]") && m.contains("Title"));
+                .anyMatch(m -> m.contains("Título") && m.contains("obrigatório"));
     }
 
     @Test
@@ -128,9 +132,10 @@ class DtoValidationLocalizationTest {
                 .build();
         Set<String> messages = messagesOf(validator.validate(dto));
 
+        // pt-BR resolution proven by "maiúscula" (Portuguese for "uppercase").
         assertThat(messages)
                 .as("@Pattern violation must resolve via the pt-BR bundle")
-                .anyMatch(m -> m.startsWith("[TODO pt-BR]") && m.contains("uppercase"));
+                .anyMatch(m -> m.contains("maiúscula"));
     }
 
     @Test

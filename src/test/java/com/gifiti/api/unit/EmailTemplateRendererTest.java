@@ -96,11 +96,11 @@ class EmailTemplateRendererTest {
         assertThat(ptBr.subject())
                 .as("pt-BR subject differs from en-US (pulled from pt-BR bundle)")
                 .isNotEqualTo(enUs.subject())
-                .startsWith("[TODO pt-BR]");
+                .contains("Bem-vindo");
         assertThat(ptBr.htmlBody())
                 .as("pt-BR body differs from en-US")
                 .isNotEqualTo(enUs.htmlBody())
-                .contains("[TODO pt-BR]");
+                .contains("Bem-vindo");
     }
 
     @Test
@@ -120,10 +120,10 @@ class EmailTemplateRendererTest {
 
         assertThat(ptBr.subject())
                 .isNotEqualTo(enUs.subject())
-                .startsWith("[TODO pt-BR]");
+                .contains("Redefina");
         assertThat(ptBr.htmlBody())
                 .isNotEqualTo(enUs.htmlBody())
-                .contains("[TODO pt-BR]");
+                .contains("Redefina");
     }
 
     /**
@@ -187,8 +187,8 @@ class EmailTemplateRendererTest {
         assertThat(email.subject())
                 .as("Language argument wins over LocaleContextHolder")
                 .isEqualTo("Welcome to Gifiti - Please confirm your email")
-                .doesNotStartWith("[TODO pt-BR]");
+                .doesNotContain("Bem-vindo"); // no pt-BR content leaked
         assertThat(email.htmlBody())
-                .doesNotContain("[TODO pt-BR]");
+                .doesNotContain("Bem-vindo"); // no pt-BR content leaked
     }
 }
