@@ -5,6 +5,7 @@ import com.gifiti.api.dto.response.GifterReservationResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
 import com.gifiti.api.dto.response.SharedWishlistListResponse;
 import com.gifiti.api.dto.response.SharedWishlistResponse;
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.Reservation;
@@ -115,7 +116,7 @@ public class GifterService {
         }
 
         return MessageResponse.builder()
-                .message("Wishlist saved")
+                .message(LocalizedMessage.of("wishlist.saved.success"))
                 .build();
     }
 

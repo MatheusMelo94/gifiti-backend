@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
@@ -94,6 +95,8 @@ public class UserService {
         userRepository.save(user);
 
         log.info("Password set for Google user: {}", email);
-        return MessageResponse.builder().message("Password set successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("user.password.set.success"))
+                .build();
     }
 }

@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.request.LoginRequest;
 import com.gifiti.api.dto.request.RefreshTokenRequest;
 import com.gifiti.api.dto.request.RegisterRequest;
@@ -111,7 +112,7 @@ public class AuthService {
                 .id(savedUser.getId())
                 .email(savedUser.getEmail())
                 .displayName(savedUser.getDisplayName())
-                .message("Registration successful. Please check your email to verify your account.")
+                .message(LocalizedMessage.of("auth.register.success"))
                 .build();
     }
 
@@ -250,7 +251,9 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Email verified for user: {}", user.getEmail());
-        return MessageResponse.builder().message("Email verified successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.email.verified.success"))
+                .build();
     }
 
     public MessageResponse resendVerification(String rawEmail) {
@@ -259,7 +262,9 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
 
         if (user.isEmailVerified()) {
-            return MessageResponse.builder().message("Email is already verified").build();
+            return MessageResponse.builder()
+                    .message(LocalizedMessage.of("auth.email.already.verified"))
+                    .build();
         }
 
         String token = UUID.randomUUID().toString();
@@ -270,17 +275,24 @@ public class AuthService {
         sendVerificationEmail(email, token);
 
         log.info("Verification email resent to: {}", email);
-        return MessageResponse.builder().message("Verification email sent").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.email.verification.sent"))
+                .build();
     }
 
     public MessageResponse forgotPassword(String rawEmail) {
         String email = normalizeEmail(rawEmail);
-        String message = "If an account exists with this email, a password reset link has been sent.";
+        // Anti-enumeration: identical response for found and not-found emails.
+        // Spec § Component 7 — the response message follows the request locale
+        // (LocaleContextHolder), not the user's stored preferredLanguage, because
+        // there may be no such user.
+        LocalizedMessage antiEnumerationMessage =
+                LocalizedMessage.of("auth.password.reset.requested");
 
         Optional<User> optionalUser = userRepository.findByEmail(email);
         if (optionalUser.isEmpty()) {
             log.debug("Password reset requested for non-existent email: {}", email);
-            return MessageResponse.builder().message(message).build();
+            return MessageResponse.builder().message(antiEnumerationMessage).build();
         }
 
         User user = optionalUser.get();
@@ -292,7 +304,7 @@ public class AuthService {
         sendPasswordResetEmail(email, token);
 
         log.info("Password reset email sent to: {}", email);
-        return MessageResponse.builder().message(message).build();
+        return MessageResponse.builder().message(antiEnumerationMessage).build();
     }
 
     public MessageResponse resetPassword(String token, String newPassword) {
@@ -313,7 +325,9 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Password reset for user: {}", user.getEmail());
-        return MessageResponse.builder().message("Password has been reset successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.password.reset.success"))
+                .build();
     }
 
     public AuthResponse loginWithGoogle(String idToken) {
@@ -428,7 +442,9 @@ public class AuthService {
             blacklistToken(refreshToken);
         }
         log.info("User logged out, tokens blacklisted");
-        return MessageResponse.builder().message("Logged out successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.logout.success"))
+                .build();
     }
 
     /**

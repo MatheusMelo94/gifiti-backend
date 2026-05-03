@@ -1,6 +1,9 @@
 package com.gifiti.api.config;
 
+import com.gifiti.api.dto.i18n.LocalizedMessage;
+import com.gifiti.api.dto.i18n.LocalizedMessageSerializer;
 import com.gifiti.api.repository.UserRepository;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -99,5 +102,27 @@ public class I18nConfig {
     @Bean
     LocaleResolver localeResolver(UserRepository userRepository) {
         return new GifitiLocaleResolver(userRepository);
+    }
+
+    /**
+     * Registers {@link LocalizedMessageSerializer} on every {@code ObjectMapper}
+     * Spring constructs. Response DTOs that hold a {@link LocalizedMessage} field
+     * (e.g. {@code RegisterResponse.message}, {@code MessageResponse.message})
+     * are then resolved to a plain JSON string at write time, using the locale
+     * carried on {@code LocaleContextHolder} (set by {@link GifitiLocaleResolver}).
+     *
+     * <p>Why a builder customizer rather than {@code @JsonComponent}: the
+     * customizer runs against the pre-configured Spring builder, so the
+     * serializer is registered on the same {@code ObjectMapper} Spring MVC uses
+     * — including overrides applied in test slices. {@code @JsonComponent} relies
+     * on classpath scanning that integration-test slices may bypass.</p>
+     *
+     * <p>Spec: {@code 005-i18n-backend-support} criteria #10, #11.
+     * Plan citation: § Component 7 — Success-message refactor.</p>
+     */
+    @Bean
+    Jackson2ObjectMapperBuilderCustomizer localizedMessageSerializerCustomizer(MessageSource messageSource) {
+        LocalizedMessageSerializer serializer = new LocalizedMessageSerializer(messageSource);
+        return builder -> builder.serializerByType(LocalizedMessage.class, serializer);
     }
 }

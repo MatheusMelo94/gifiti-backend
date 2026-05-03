@@ -34,7 +34,8 @@ class AuthIntegrationTest extends BaseIntegrationTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").exists())
                     .andExpect(jsonPath("$.email").value("newuser@example.com"))
-                    .andExpect(jsonPath("$.message").value("User registered successfully"));
+                    .andExpect(jsonPath("$.message").value(
+                            "Registration successful. Please check your email to verify your account."));
         }
 
         @Test

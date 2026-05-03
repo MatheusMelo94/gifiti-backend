@@ -83,7 +83,10 @@ class AuthServiceTest {
             RegisterResponse response = authService.register(request);
 
             assertThat(response.getEmail()).isEqualTo("test@example.com");
-            assertThat(response.getMessage()).contains("verify");
+            // Post-Task 7 (i18n): RegisterResponse.message is a LocalizedMessage
+            // carrying a key. The serializer resolves it at JSON-write time;
+            // assert on the key here, not the resolved string.
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.register.success");
 
             // Verify email was sent
             verify(emailService).send(eq("test@example.com"), eq("Welcome to Gifiti - Please confirm your email"), any());
@@ -116,7 +119,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.verifyEmail("valid-token");
 
-            assertThat(response.getMessage()).contains("verified");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.verified.success");
             assertThat(user.isEmailVerified()).isTrue();
             assertThat(user.getVerificationToken()).isNull();
         }
@@ -166,7 +169,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.resendVerification("test@example.com");
 
-            assertThat(response.getMessage()).contains("sent");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.verification.sent");
             verify(emailService).send(eq("test@example.com"), any(), any());
         }
 
@@ -182,7 +185,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.resendVerification("test@example.com");
 
-            assertThat(response.getMessage()).contains("already verified");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.already.verified");
             verify(emailService, never()).send(any(), any(), any());
         }
     }
@@ -202,7 +205,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.forgotPassword("test@example.com");
 
-            assertThat(response.getMessage()).contains("If an account exists");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.requested");
             verify(emailService).send(eq("test@example.com"), any(), any());
         }
 
@@ -213,7 +216,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.forgotPassword("ghost@example.com");
 
-            assertThat(response.getMessage()).contains("If an account exists");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.requested");
             verify(emailService, never()).send(any(), any(), any());
         }
     }
@@ -237,7 +240,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.resetPassword("reset-token", "NewSecureP@ss1!");
 
-            assertThat(response.getMessage()).contains("reset successfully");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.success");
             assertThat(user.getPasswordResetToken()).isNull();
             assertThat(user.getVerificationToken()).isNull();
             verify(passwordEncoder).encode("NewSecureP@ss1!");
