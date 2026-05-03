@@ -24,26 +24,26 @@ import java.math.BigDecimal;
 @Schema(description = "Create a new wishlist item")
 public class CreateItemRequest {
 
-    @NotBlank(message = "Name is required")
-    @Size(max = 200, message = "Name must not exceed 200 characters")
+    @NotBlank(message = "{validation.item.name.notblank}")
+    @Size(max = 200, message = "{validation.shared.item.name.size}")
     @NoHtml
     @Schema(description = "Item name", example = "Sony WH-1000XM5 Headphones")
     private String name;
 
-    @Size(max = 1000, message = "Description must not exceed 1000 characters")
+    @Size(max = 1000, message = "{validation.shared.item.description.size}")
     @NoHtml
     @Schema(description = "Optional description", example = "Noise-cancelling, black color")
     private String description;
 
-    @SafeUrl(message = "Product link must be a valid URL (http/https only)")
+    @SafeUrl(message = "{validation.shared.item.productlink.safeurl}")
     @Schema(description = "Link to the product page", example = "https://www.amazon.com/dp/B0BX2L8PBT")
     private String productLink;
 
-    @SafeUrl(message = "Image URL must be a valid URL (http/https only)")
+    @SafeUrl(message = "{validation.shared.item.imageurl.safeurl}")
     @Schema(description = "Image URL for display", example = "https://images.example.com/headphones.jpg")
     private String imageUrl;
 
-    @Positive(message = "Price must be positive")
+    @Positive(message = "{validation.shared.item.price.positive}")
     @Schema(description = "Item price", example = "349.99")
     private BigDecimal price;
 
@@ -51,7 +51,7 @@ public class CreateItemRequest {
     @Schema(description = "Priority level", example = "HIGH")
     private Priority priority = Priority.MEDIUM;
 
-    @Positive(message = "Quantity must be positive")
+    @Positive(message = "{validation.shared.item.quantity.positive}")
     @Builder.Default
     @Schema(description = "Desired quantity (default 1)", example = "1")
     private int quantity = 1;

@@ -77,7 +77,7 @@ class ImageValidationServiceTest {
         void shouldRejectNullFile() {
             assertThatThrownBy(() -> validationService.validate(null))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File is required");
+                    .hasMessage("error.image.validation.required");
         }
 
         @Test
@@ -87,7 +87,7 @@ class ImageValidationServiceTest {
                     "file", "empty.jpg", "image/jpeg", new byte[0]);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File must not be empty");
+                    .hasMessage("error.image.validation.empty");
         }
 
         @Test
@@ -99,7 +99,7 @@ class ImageValidationServiceTest {
                     "file", "huge.jpg", "image/jpeg", oversized);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File size exceeds maximum of 5MB");
+                    .hasMessage("error.image.validation.too.large");
         }
 
         @Test
@@ -109,7 +109,7 @@ class ImageValidationServiceTest {
                     "file", "document.pdf", "application/pdf", PDF_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                    .hasMessage("error.image.validation.type.not.allowed");
         }
 
         @Test
@@ -119,7 +119,7 @@ class ImageValidationServiceTest {
                     "file", "malware.exe", "application/octet-stream", EXE_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                    .hasMessage("error.image.validation.type.not.allowed");
         }
 
         @Test
@@ -129,7 +129,7 @@ class ImageValidationServiceTest {
                     "file", "animation.gif", "image/gif", new byte[]{0x47, 0x49, 0x46, 0x38});
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                    .hasMessage("error.image.validation.type.not.allowed");
         }
 
         @Test
@@ -139,7 +139,7 @@ class ImageValidationServiceTest {
                     "file", "photo.jpg", "application/pdf", JPEG_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                    .hasMessage("error.image.validation.type.not.allowed");
         }
 
         @Test
@@ -149,7 +149,7 @@ class ImageValidationServiceTest {
                     "file", "fake.jpg", "image/jpeg", PDF_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File content does not match declared type");
+                    .hasMessage("error.image.validation.content.mismatch");
         }
 
         @Test
@@ -159,7 +159,7 @@ class ImageValidationServiceTest {
                     "file", "fake.jpg", "image/jpeg", EXE_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File content does not match declared type");
+                    .hasMessage("error.image.validation.content.mismatch");
         }
 
         @Test
@@ -169,7 +169,7 @@ class ImageValidationServiceTest {
                     "file", "noextension", "image/jpeg", JPEG_MAGIC);
             assertThatThrownBy(() -> validationService.validate(file))
                     .isInstanceOf(ImageUploadException.class)
-                    .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                    .hasMessage("error.image.validation.type.not.allowed");
         }
     }
 }

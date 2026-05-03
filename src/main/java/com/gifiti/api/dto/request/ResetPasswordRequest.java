@@ -14,14 +14,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ResetPasswordRequest {
 
-    @NotBlank(message = "Token is required")
+    @NotBlank(message = "{validation.shared.token.notblank}")
     private String token;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 12, max = 128, message = "Password must be 12-128 characters")
+    @NotBlank(message = "{validation.shared.password.notblank}")
+    @Size(min = 12, max = 128, message = "{validation.shared.password.size}")
     @Pattern(
         regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&._#^()\\-+=])[A-Za-z\\d@$!%*?&._#^()\\-+=]{12,}$",
-        message = "Password must contain uppercase, lowercase, digit, and special character (@$!%*?&._#^()-+=)"
+        message = "{validation.shared.password.pattern}"
     )
     private String newPassword;
 }

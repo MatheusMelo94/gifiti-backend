@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.exception.ResourceNotFoundException;
@@ -34,7 +35,9 @@ public class UserService {
      */
     public User findById(String id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "id", id));
     }
 
     /**
@@ -46,7 +49,9 @@ public class UserService {
      */
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "email", email));
     }
 
     /**
@@ -76,7 +81,7 @@ public class UserService {
     public void requireEmailVerified(String email) {
         User user = findByEmail(email);
         if (!user.isEmailVerified()) {
-            throw new AccessDeniedException("Email verification required. Please verify your email before performing this action.");
+            throw new AccessDeniedException("error.email.verification.required", new Object[0]);
         }
     }
 
@@ -94,6 +99,8 @@ public class UserService {
         userRepository.save(user);
 
         log.info("Password set for Google user: {}", email);
-        return MessageResponse.builder().message("Password set successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("user.password.set.success"))
+                .build();
     }
 }

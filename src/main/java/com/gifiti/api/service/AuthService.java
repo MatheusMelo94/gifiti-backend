@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.request.LoginRequest;
 import com.gifiti.api.dto.request.RefreshTokenRequest;
 import com.gifiti.api.dto.request.RegisterRequest;
@@ -11,13 +12,16 @@ import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.BlacklistedToken;
 import com.gifiti.api.model.User;
 import com.gifiti.api.model.enums.AuthProvider;
+import com.gifiti.api.model.enums.Language;
 import com.gifiti.api.model.enums.Role;
 import com.gifiti.api.repository.BlacklistedTokenRepository;
 import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.security.JwtTokenProvider;
+import com.gifiti.api.service.EmailTemplateRenderer.RenderedEmail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -56,6 +60,7 @@ public class AuthService {
     private final AccountLockoutService accountLockoutService;
     private final PasswordValidationService passwordValidationService;
     private final EmailService emailService;
+    private final EmailTemplateRenderer emailTemplateRenderer;
     private final GoogleTokenVerifierService googleTokenVerifierService;
 
     @Value("${app.base-url}")
@@ -82,7 +87,7 @@ public class AuthService {
 
         if (userRepository.existsByEmail(email)) {
             log.warn("Registration failed: email already exists: {}", email);
-            throw new ConflictException("Email already registered");
+            throw new ConflictException("error.email.already.registered", new Object[0]);
         }
 
         // Derive displayName if not provided
@@ -93,10 +98,19 @@ public class AuthService {
 
         String verificationToken = UUID.randomUUID().toString();
 
+        // Spec criteria #16, #17: persist the request locale as the new user's
+        // preferredLanguage so subsequent emails (resend, forgot-password) and
+        // server-rendered responses follow the language they registered with.
+        // Resolved from LocaleContextHolder (set by GifitiLocaleResolver from
+        // the Accept-Language header), falling back to EN_US for unsupported tags.
+        Language registrationLanguage = Language.fromLocale(LocaleContextHolder.getLocale())
+                .orElse(Language.EN_US);
+
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .displayName(displayName)
+                .preferredLanguage(registrationLanguage)
                 .roles(Set.of(Role.USER))
                 .verificationToken(hashToken(verificationToken))
                 .verificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS))
@@ -105,13 +119,13 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully: {}", savedUser.getId());
 
-        sendVerificationEmail(savedUser.getEmail(), verificationToken);
+        sendVerificationEmail(savedUser.getEmail(), registrationLanguage, verificationToken);
 
         return RegisterResponse.builder()
                 .id(savedUser.getId())
                 .email(savedUser.getEmail())
                 .displayName(savedUser.getDisplayName())
-                .message("Registration successful. Please check your email to verify your account.")
+                .message(LocalizedMessage.of("auth.register.success"))
                 .build();
     }
 
@@ -134,7 +148,7 @@ public class AuthService {
         // Check if account is locked (H-02 security fix)
         if (accountLockoutService.isLocked(email)) {
             log.warn("SECURITY_EVENT: Login attempt on locked account: {}", email);
-            throw new UnauthorizedException("Account temporarily locked due to multiple failed attempts. Try again later.");
+            throw new UnauthorizedException("error.auth.account.locked", new Object[0]);
         }
 
         try {
@@ -149,7 +163,7 @@ public class AuthService {
             accountLockoutService.recordSuccessfulLogin(email);
 
             User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+                    .orElseThrow(() -> new UnauthorizedException("error.auth.credentials.invalid", new Object[0]));
 
             String accessToken = jwtTokenProvider.generateAccessToken(authentication);
             String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
@@ -173,7 +187,7 @@ public class AuthService {
             // Record failed attempt for lockout tracking (H-02 security fix)
             accountLockoutService.recordFailedAttempt(email);
             log.warn("SECURITY_EVENT: Login failed for email: {} - invalid credentials", email);
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException("error.auth.credentials.invalid", new Object[0]);
         }
     }
 
@@ -198,13 +212,13 @@ public class AuthService {
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             log.warn("SECURITY_EVENT: Invalid refresh token presented");
-            throw new UnauthorizedException("Invalid or expired refresh token");
+            throw new UnauthorizedException("error.auth.refresh.token.invalid", new Object[0]);
         }
 
         // Check if this refresh token has been blacklisted (replay detection)
         if (isTokenBlacklisted(refreshToken)) {
             log.warn("SECURITY_EVENT: Blacklisted refresh token reuse detected");
-            throw new UnauthorizedException("Invalid or expired refresh token");
+            throw new UnauthorizedException("error.auth.refresh.token.invalid", new Object[0]);
         }
 
         String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
@@ -212,7 +226,7 @@ public class AuthService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> {
                     log.warn("SECURITY_EVENT: Refresh token for non-existent user: {}", username);
-                    return new UnauthorizedException("Invalid refresh token");
+                    return new UnauthorizedException("error.auth.refresh.token.malformed", new Object[0]);
                 });
 
         // Rotate: blacklist old token FIRST to close replay window, then issue new tokens
@@ -238,10 +252,10 @@ public class AuthService {
 
     public MessageResponse verifyEmail(String token) {
         User user = userRepository.findByVerificationToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("Invalid verification token"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.verification.token.invalid", new Object[0]));
 
         if (user.getVerificationTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("Verification token has expired");
+            throw new UnauthorizedException("error.auth.verification.token.expired", new Object[0]);
         }
 
         user.setEmailVerified(true);
@@ -250,16 +264,20 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Email verified for user: {}", user.getEmail());
-        return MessageResponse.builder().message("Email verified successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.email.verified.success"))
+                .build();
     }
 
     public MessageResponse resendVerification(String rawEmail) {
         String email = normalizeEmail(rawEmail);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedException("User not found"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.user.not.found", new Object[0]));
 
         if (user.isEmailVerified()) {
-            return MessageResponse.builder().message("Email is already verified").build();
+            return MessageResponse.builder()
+                    .message(LocalizedMessage.of("auth.email.already.verified"))
+                    .build();
         }
 
         String token = UUID.randomUUID().toString();
@@ -267,20 +285,31 @@ public class AuthService {
         user.setVerificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS));
         userRepository.save(user);
 
-        sendVerificationEmail(email, token);
+        // Spec criterion #13 + plan § Component 8: emails to a known user follow
+        // the user's stored preferredLanguage, NOT the request locale. This
+        // survives the case where a Portuguese-speaking user with a session
+        // sending Accept-Language: en-US still receives Portuguese emails.
+        sendVerificationEmail(email, user.effectiveLanguage(), token);
 
         log.info("Verification email resent to: {}", email);
-        return MessageResponse.builder().message("Verification email sent").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.email.verification.sent"))
+                .build();
     }
 
     public MessageResponse forgotPassword(String rawEmail) {
         String email = normalizeEmail(rawEmail);
-        String message = "If an account exists with this email, a password reset link has been sent.";
+        // Anti-enumeration: identical response for found and not-found emails.
+        // Spec § Component 7 — the response message follows the request locale
+        // (LocaleContextHolder), not the user's stored preferredLanguage, because
+        // there may be no such user.
+        LocalizedMessage antiEnumerationMessage =
+                LocalizedMessage.of("auth.password.reset.requested");
 
         Optional<User> optionalUser = userRepository.findByEmail(email);
         if (optionalUser.isEmpty()) {
             log.debug("Password reset requested for non-existent email: {}", email);
-            return MessageResponse.builder().message(message).build();
+            return MessageResponse.builder().message(antiEnumerationMessage).build();
         }
 
         User user = optionalUser.get();
@@ -289,18 +318,21 @@ public class AuthService {
         user.setPasswordResetTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS));
         userRepository.save(user);
 
-        sendPasswordResetEmail(email, token);
+        // Spec criterion #13: the password-reset email follows the user's stored
+        // preferredLanguage, while the response message follows the request locale
+        // (anti-enumeration: identical response for found vs not-found emails).
+        sendPasswordResetEmail(email, user.effectiveLanguage(), token);
 
         log.info("Password reset email sent to: {}", email);
-        return MessageResponse.builder().message(message).build();
+        return MessageResponse.builder().message(antiEnumerationMessage).build();
     }
 
     public MessageResponse resetPassword(String token, String newPassword) {
         User user = userRepository.findByPasswordResetToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("Invalid password reset token"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.password.reset.token.invalid", new Object[0]));
 
         if (user.getPasswordResetTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("Password reset token has expired");
+            throw new UnauthorizedException("error.auth.password.reset.token.expired", new Object[0]);
         }
 
         passwordValidationService.validate(newPassword, user.getEmail());
@@ -313,18 +345,20 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("Password reset for user: {}", user.getEmail());
-        return MessageResponse.builder().message("Password has been reset successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.password.reset.success"))
+                .build();
     }
 
     public AuthResponse loginWithGoogle(String idToken) {
         GoogleTokenVerifierService.GoogleUserInfo googleUser = googleTokenVerifierService.verify(idToken);
         if (googleUser == null) {
-            throw new UnauthorizedException("Invalid Google credentials");
+            throw new UnauthorizedException("error.auth.google.credentials.invalid", new Object[0]);
         }
 
         if (!googleUser.emailVerified()) {
             log.warn("SECURITY_EVENT: Google login rejected — email not verified: {}", googleUser.email());
-            throw new UnauthorizedException("Google account email not verified");
+            throw new UnauthorizedException("error.auth.google.email.not.verified", new Object[0]);
         }
 
         String email = normalizeEmail(googleUser.email());
@@ -389,7 +423,7 @@ public class AuthService {
                     user = userRepository.save(user);
                     log.info("Created new Google user: {}", email);
                 } catch (org.springframework.dao.DuplicateKeyException e) {
-                    throw new ConflictException("Email already registered");
+                    throw new ConflictException("error.email.already.registered", new Object[0]);
                 }
             }
         }
@@ -413,10 +447,10 @@ public class AuthService {
                 .build();
     }
 
-    private void sendVerificationEmail(String email, String token) {
+    private void sendVerificationEmail(String email, Language language, String token) {
         String verifyUrl = baseUrl + "/verify-email?token=" + token;
-        emailService.send(email, "Welcome to Gifiti - Please confirm your email",
-                EmailTemplates.verification(verifyUrl));
+        RenderedEmail rendered = emailTemplateRenderer.verification(language, verifyUrl);
+        emailService.send(email, rendered.subject(), rendered.htmlBody());
     }
 
     /**
@@ -428,7 +462,9 @@ public class AuthService {
             blacklistToken(refreshToken);
         }
         log.info("User logged out, tokens blacklisted");
-        return MessageResponse.builder().message("Logged out successfully").build();
+        return MessageResponse.builder()
+                .message(LocalizedMessage.of("auth.logout.success"))
+                .build();
     }
 
     /**
@@ -464,9 +500,9 @@ public class AuthService {
         return email == null ? null : email.toLowerCase().trim();
     }
 
-    private void sendPasswordResetEmail(String email, String token) {
+    private void sendPasswordResetEmail(String email, Language language, String token) {
         String resetUrl = baseUrl + "/reset-password?token=" + token;
-        emailService.send(email, "Reset your Gifiti password",
-                EmailTemplates.passwordReset(resetUrl));
+        RenderedEmail rendered = emailTemplateRenderer.passwordReset(language, resetUrl);
+        emailService.send(email, rendered.subject(), rendered.htmlBody());
     }
 }

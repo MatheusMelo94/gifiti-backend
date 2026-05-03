@@ -84,7 +84,8 @@ class ReservationServiceTest {
 
             assertThatThrownBy(() -> reservationService.reserve(ITEM_ID, RESERVER_ID))
                     .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("fully reserved");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.reservation.fully.reserved");
 
             verify(reservationRepository, never()).save(any());
         }
@@ -104,7 +105,8 @@ class ReservationServiceTest {
 
             assertThatThrownBy(() -> reservationService.reserve(ITEM_ID, RESERVER_ID))
                     .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("already reserved");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.reservation.already.reserved.by.user");
         }
 
         @Test

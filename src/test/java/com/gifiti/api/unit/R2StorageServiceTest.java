@@ -74,7 +74,9 @@ class R2StorageServiceTest {
 
         assertThatThrownBy(() -> storageService.upload(new byte[]{1}, "key", "image/jpeg"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessageContaining("Failed to upload image");
+                // Task 10: getMessage() now returns the i18n key (keyed-constructor
+                // contract); GlobalExceptionHandler resolves it to English at response time.
+                .hasMessage("error.image.upload.failed");
     }
 
     @Test

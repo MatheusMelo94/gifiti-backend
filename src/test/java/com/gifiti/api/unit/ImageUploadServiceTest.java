@@ -56,9 +56,12 @@ class ImageUploadServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", new byte[]{1});
 
+        // Task 10: getMessage() now returns the i18n key (keyed-constructor contract,
+        // per LocalizedRuntimeException javadoc); the user-visible English text is
+        // resolved by GlobalExceptionHandler at response time.
         assertThatThrownBy(() -> uploadService.upload(file, "profile", "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("Context must be 'item' or 'wishlist'");
+                .hasMessage("error.image.upload.context.invalid");
     }
 
     @Test
@@ -69,7 +72,7 @@ class ImageUploadServiceTest {
 
         assertThatThrownBy(() -> uploadService.upload(file, null, "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("Context must be 'item' or 'wishlist'");
+                .hasMessage("error.image.upload.context.invalid");
     }
 
     @Test
@@ -78,12 +81,12 @@ class ImageUploadServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "virus.exe", "application/octet-stream", new byte[]{1});
 
-        doThrow(new ImageUploadException("File type not allowed. Accepted: JPEG, PNG, WebP"))
+        doThrow(new ImageUploadException("error.image.validation.type.not.allowed", new Object[0]))
                 .when(validationService).validate(file);
 
         assertThatThrownBy(() -> uploadService.upload(file, "item", "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                .hasMessage("error.image.validation.type.not.allowed");
     }
 
     @Test

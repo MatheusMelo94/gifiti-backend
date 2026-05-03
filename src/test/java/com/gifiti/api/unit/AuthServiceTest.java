@@ -14,6 +14,8 @@ import com.gifiti.api.security.JwtTokenProvider;
 import com.gifiti.api.service.AccountLockoutService;
 import com.gifiti.api.service.AuthService;
 import com.gifiti.api.service.EmailService;
+import com.gifiti.api.service.EmailTemplateRenderer;
+import com.gifiti.api.service.EmailTemplateRenderer.RenderedEmail;
 import com.gifiti.api.service.PasswordValidationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -53,6 +55,8 @@ class AuthServiceTest {
     @Mock
     private EmailService emailService;
     @Mock
+    private EmailTemplateRenderer emailTemplateRenderer;
+    @Mock
     private BlacklistedTokenRepository blacklistedTokenRepository;
 
     @InjectMocks
@@ -79,14 +83,24 @@ class AuthServiceTest {
                 u.setId("user-id");
                 return u;
             });
+            // Post-Task 8 (i18n): EmailTemplateRenderer is the single source of
+            // truth for the email subject + body. AuthService delegates to it
+            // and forwards the rendered fields verbatim to EmailService. The
+            // byte-for-byte English text assertion lives in
+            // EmailTemplateRendererTest; here we only verify orchestration.
+            when(emailTemplateRenderer.verification(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             RegisterResponse response = authService.register(request);
 
             assertThat(response.getEmail()).isEqualTo("test@example.com");
-            assertThat(response.getMessage()).contains("verify");
+            // Post-Task 7 (i18n): RegisterResponse.message is a LocalizedMessage
+            // carrying a key. The serializer resolves it at JSON-write time;
+            // assert on the key here, not the resolved string.
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.register.success");
 
-            // Verify email was sent
-            verify(emailService).send(eq("test@example.com"), eq("Welcome to Gifiti - Please confirm your email"), any());
+            // Verify email was sent with the rendered (stubbed) subject + body
+            verify(emailService).send("test@example.com", "subj-stub", "body-stub");
 
             // Verify user was saved with verification token
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -116,7 +130,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.verifyEmail("valid-token");
 
-            assertThat(response.getMessage()).contains("verified");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.verified.success");
             assertThat(user.isEmailVerified()).isTrue();
             assertThat(user.getVerificationToken()).isNull();
         }
@@ -143,7 +157,8 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.verifyEmail("expired-token"))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("expired");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.verification.token.expired");
         }
     }
 
@@ -163,10 +178,12 @@ class AuthServiceTest {
 
             when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenReturn(user);
+            when(emailTemplateRenderer.verification(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             MessageResponse response = authService.resendVerification("test@example.com");
 
-            assertThat(response.getMessage()).contains("sent");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.verification.sent");
             verify(emailService).send(eq("test@example.com"), any(), any());
         }
 
@@ -182,7 +199,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.resendVerification("test@example.com");
 
-            assertThat(response.getMessage()).contains("already verified");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.already.verified");
             verify(emailService, never()).send(any(), any(), any());
         }
     }
@@ -199,10 +216,12 @@ class AuthServiceTest {
             User user = User.builder().email("test@example.com").build();
             when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenReturn(user);
+            when(emailTemplateRenderer.passwordReset(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             MessageResponse response = authService.forgotPassword("test@example.com");
 
-            assertThat(response.getMessage()).contains("If an account exists");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.requested");
             verify(emailService).send(eq("test@example.com"), any(), any());
         }
 
@@ -213,7 +232,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.forgotPassword("ghost@example.com");
 
-            assertThat(response.getMessage()).contains("If an account exists");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.requested");
             verify(emailService, never()).send(any(), any(), any());
         }
     }
@@ -237,7 +256,7 @@ class AuthServiceTest {
 
             MessageResponse response = authService.resetPassword("reset-token", "NewSecureP@ss1!");
 
-            assertThat(response.getMessage()).contains("reset successfully");
+            assertThat(response.getMessage().messageKey()).isEqualTo("auth.password.reset.success");
             assertThat(user.getPasswordResetToken()).isNull();
             assertThat(user.getVerificationToken()).isNull();
             verify(passwordEncoder).encode("NewSecureP@ss1!");
@@ -265,7 +284,8 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.resetPassword("expired-token", "NewSecureP@ss1!"))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("expired");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.password.reset.token.expired");
         }
     }
 

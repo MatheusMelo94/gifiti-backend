@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Google Sign-In credentials")
 public class GoogleLoginRequest {
 
-    @NotBlank(message = "ID token is required")
+    @NotBlank(message = "{validation.googlelogin.idtoken.notblank}")
     @Schema(description = "Google ID token from Sign-In SDK")
     private String idToken;
 }

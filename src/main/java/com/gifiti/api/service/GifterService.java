@@ -5,11 +5,11 @@ import com.gifiti.api.dto.response.GifterReservationResponse;
 import com.gifiti.api.dto.response.ReservationResponse;
 import com.gifiti.api.dto.response.SharedWishlistListResponse;
 import com.gifiti.api.dto.response.SharedWishlistResponse;
+import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.model.Reservation;
 import com.gifiti.api.model.SavedWishlist;
-import com.gifiti.api.model.User;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
 import com.gifiti.api.model.enums.ItemStatus;
@@ -21,7 +21,6 @@ import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -70,7 +69,9 @@ public class GifterService {
      */
     public ReservationResponse cancelReservation(String itemId, String gifterId) {
         Reservation reservation = reservationRepository.findByItemIdAndReserverId(itemId, gifterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reservation", "itemId", itemId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Reservation", "itemId", itemId));
 
         // Delete this gifter's reservation
         reservationRepository.delete(reservation);
@@ -96,10 +97,14 @@ public class GifterService {
         log.debug("User {} saving shared wishlist {}", userId, shareableId);
 
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "shareableId", shareableId));
 
         if (wishlist.getVisibility() != Visibility.PUBLIC) {
-            throw new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
+            throw new ResourceNotFoundException(
+                    ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                    "Wishlist", "shareableId", shareableId);
         }
 
         if (wishlist.getOwnerUserId().equals(userId)) {
@@ -115,7 +120,7 @@ public class GifterService {
         }
 
         return MessageResponse.builder()
-                .message("Wishlist saved")
+                .message(LocalizedMessage.of("wishlist.saved.success"))
                 .build();
     }
 
@@ -202,7 +207,9 @@ public class GifterService {
         log.debug("Gifter {} leaving shared wishlist {}", gifterId, shareableId);
 
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "shareableId", shareableId));
 
         // Remove saved entry if it exists
         savedWishlistRepository.deleteByUserIdAndWishlistId(gifterId, wishlist.getId());

@@ -204,19 +204,23 @@ public class WishlistItemService {
      */
     private WishlistItem findAndVerifyOwnership(String wishlistId, String itemId, String userId) {
         WishlistItem item = wishlistItemRepository.findById(itemId)
-                .orElseThrow(() -> new ResourceNotFoundException("WishlistItem", "id", itemId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "WishlistItem", "id", itemId));
 
         // Verify the item belongs to the specified wishlist
         if (!item.getWishlistId().equals(wishlistId)) {
             log.warn("SECURITY_EVENT: Item {} does not belong to wishlist {} - potential IDOR attempt", itemId, wishlistId);
-            throw new ResourceNotFoundException("WishlistItem", "id", itemId);
+            throw new ResourceNotFoundException(
+                    ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                    "WishlistItem", "id", itemId);
         }
 
         // Verify user owns the item (via denormalized ownerUserId)
         if (!item.getOwnerUserId().equals(userId)) {
             log.warn("SECURITY_EVENT: Access denied - user {} attempted to access item {} owned by {}",
                      userId, itemId, item.getOwnerUserId());
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("error.access.denied", new Object[0]);
         }
 
         return item;

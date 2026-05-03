@@ -25,7 +25,7 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        userToken = createUserAndGetToken("wishlistuser@example.com", "Password123!");
+        userToken = createVerifiedUserAndGetToken("wishlistuser@example.com", "BlueP4nther$Xyz2!");
     }
 
     @Nested
@@ -117,7 +117,7 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
             createWishlist("First User's Wishlist");
 
             // Create second user and check their wishlists
-            String otherUserToken = createUserAndGetToken("otheruser@example.com", "Password123!");
+            String otherUserToken = createVerifiedUserAndGetToken("otheruser@example.com", "BlueP4nther$Xyz2!");
 
             mockMvc.perform(get("/api/v1/wishlists")
                             .header("Authorization", bearerToken(otherUserToken)))
@@ -155,7 +155,7 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
         void shouldReturn403ForOtherUserWishlist() throws Exception {
             String wishlistId = createWishlist("Private Wishlist");
 
-            String otherUserToken = createUserAndGetToken("otheruser2@example.com", "Password123!");
+            String otherUserToken = createVerifiedUserAndGetToken("otheruser2@example.com", "BlueP4nther$Xyz2!");
 
             mockMvc.perform(get("/api/v1/wishlists/" + wishlistId)
                             .header("Authorization", bearerToken(otherUserToken)))
@@ -229,7 +229,7 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
         void shouldNotDeleteOtherUserWishlist() throws Exception {
             String wishlistId = createWishlist("Protected Wishlist");
 
-            String otherUserToken = createUserAndGetToken("otheruser3@example.com", "Password123!");
+            String otherUserToken = createVerifiedUserAndGetToken("otheruser3@example.com", "BlueP4nther$Xyz2!");
 
             mockMvc.perform(delete("/api/v1/wishlists/" + wishlistId)
                             .header("Authorization", bearerToken(otherUserToken)))
@@ -294,7 +294,11 @@ class WishlistIntegrationTest extends BaseIntegrationTest {
             String shareableId = objectMapper.readTree(result.getResponse().getContentAsString())
                     .get("shareableId").asText();
 
-            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
+            // Shared wishlists now require authentication (link + login per
+            // SecurityConfig). The endpoint name is historical — it serves
+            // share-link consumers, who must be authenticated.
+            mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
+                            .header("Authorization", bearerToken(userToken)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.eventDate").value("2026-06-15"))
                     .andExpect(jsonPath("$.ownerDisplayName").exists());

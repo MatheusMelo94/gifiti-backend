@@ -30,10 +30,11 @@ jobs:
   build-test:
     name: Build & Test (Java 21)
     runs-on: ubuntu-latest
-    # 10 min: unit-only test suite finishes in seconds. Headroom is for
-    # Maven dependency resolution on cold cache. Bump to 35+ when
-    # integration tests rejoin the suite under ./mvnw verify.
-    timeout-minutes: 10
+    # 15 min: integration tests pulled into CI by Task 11 of the i18n feature
+    # add ~3-4 minutes of Testcontainers MongoDB startup and end-to-end runs.
+    # Headroom for Maven dependency resolution on cold cache plus the new
+    # integration suite.
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -49,15 +50,23 @@ jobs:
       - name: Make mvnw executable
         run: chmod +x ./mvnw
 
-      - name: Build & unit-test
-        # Runs unit tests only. Integration tests under
-        # src/test/java/com/gifiti/api/integration/ are temporarily excluded
-        # from CI: they have accumulated drift against current production
-        # behavior (validation rules, cookie-based auth, mandatory email
-        # verification) and need a focused fixture refresh before they can
-        # gate merges. Tracked separately; restore by removing the -Dtest
-        # exclusion below once integration tests are green.
-        run: ./mvnw --batch-mode --no-transfer-progress -Dtest='!com.gifiti.api.integration.*Test,!com.gifiti.api.integration.*Tests' test
+      - name: Build & test
+        # Runs the full unit + integration suite, with the legacy integration
+        # tests still excluded by explicit class name. The 4 targeted re-enables
+        # (Auth, Profile, Wishlist, WishlistItem) plus the i18n feature suite
+        # under com.gifiti.api.integration.i18n.* now run in CI as of Task 11
+        # of the i18n feature.
+        #
+        # Excluded by class name: 9 pre-existing integration tests with fixture
+        # drift unrelated to this feature. Each top-level entry is paired with
+        # `$*` to also catch nested `@Nested` classes (Surefire treats nested
+        # classes as distinct types for filtering). Tracked separately; restore
+        # individual entries by removing them from the exclusion list once the
+        # targeted fixture refresh lands.
+        run: |
+          ./mvnw --batch-mode --no-transfer-progress \
+            -Dtest='!com.gifiti.api.integration.AccountLockoutIntegrationTest,!com.gifiti.api.integration.GifterIntegrationTest,!com.gifiti.api.integration.GifterIntegrationTest$*,!com.gifiti.api.integration.GifterPrivacyIntegrationTest,!com.gifiti.api.integration.ImageUploadIntegrationTest,!com.gifiti.api.integration.PrivacyIntegrationTest,!com.gifiti.api.integration.PublicWishlistIntegrationTest,!com.gifiti.api.integration.PublicWishlistIntegrationTest$*,!com.gifiti.api.integration.ReservationIntegrationTest,!com.gifiti.api.integration.ReservationIntegrationTest$*,!com.gifiti.api.integration.UserPersistenceTest,!com.gifiti.api.integration.WishlistCoverImageIntegrationTest,!com.gifiti.api.integration.WishlistCoverImageIntegrationTest$*' \
+            test
 
       - name: Upload Surefire reports on failure or cancellation
         # `always()` covers success/failure/cancelled. We want reports on

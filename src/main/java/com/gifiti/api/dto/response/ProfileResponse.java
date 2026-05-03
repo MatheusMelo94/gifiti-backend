@@ -1,5 +1,6 @@
 package com.gifiti.api.dto.response;
 
+import com.gifiti.api.model.enums.Language;
 import com.gifiti.api.model.enums.Role;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -40,4 +41,16 @@ public class ProfileResponse {
 
     @Schema(description = "Account creation timestamp")
     private Instant createdAt;
+
+    /**
+     * The user's preferred UI/email language, with the lazy default applied
+     * (see {@code User.effectiveLanguage()}). Always non-null on the wire so
+     * clients can render a clear current setting; serialized as the BCP-47
+     * tag (e.g., {@code "pt-BR"}) via {@code @JsonValue} on
+     * {@link Language#getTag()}.
+     */
+    @Schema(description = "Preferred UI/email language (BCP-47 tag)",
+            example = "pt-BR",
+            allowableValues = {"en-US", "pt-BR"})
+    private Language preferredLanguage;
 }

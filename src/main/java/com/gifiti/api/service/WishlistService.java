@@ -184,12 +184,14 @@ public class WishlistService {
      */
     public Wishlist findAndVerifyOwnership(String id, String userId) {
         Wishlist wishlist = wishlistRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "id", id));
 
         if (!wishlist.getOwnerUserId().equals(userId)) {
             log.warn("SECURITY_EVENT: Access denied - user {} attempted to access wishlist {} owned by {}",
                      userId, id, wishlist.getOwnerUserId());
-            throw new AccessDeniedException("Access denied");
+            throw new AccessDeniedException("error.access.denied", new Object[0]);
         }
 
         return wishlist;
@@ -204,7 +206,9 @@ public class WishlistService {
      */
     public Wishlist findByShareableId(String shareableId) {
         return wishlistRepository.findByShareableId(shareableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "shareableId", shareableId));
     }
 
     public WishlistResponse rotateShareableId(String id, String userId) {

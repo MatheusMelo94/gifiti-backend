@@ -12,6 +12,7 @@ import com.gifiti.api.security.JwtTokenProvider;
 import com.gifiti.api.service.AccountLockoutService;
 import com.gifiti.api.service.AuthService;
 import com.gifiti.api.service.EmailService;
+import com.gifiti.api.service.EmailTemplateRenderer;
 import com.gifiti.api.service.GoogleTokenVerifierService;
 import com.gifiti.api.service.GoogleTokenVerifierService.GoogleUserInfo;
 import com.gifiti.api.service.PasswordValidationService;
@@ -54,6 +55,8 @@ class GoogleAuthServiceTest {
     @Mock
     private EmailService emailService;
     @Mock
+    private EmailTemplateRenderer emailTemplateRenderer;
+    @Mock
     private GoogleTokenVerifierService googleTokenVerifierService;
 
     @InjectMocks
@@ -87,7 +90,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("Invalid Google credentials");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.google.credentials.invalid");
         }
 
         @Test
@@ -98,7 +102,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("email not verified");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.google.email.not.verified");
         }
     }
 
@@ -232,7 +237,7 @@ class GoogleAuthServiceTest {
             when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
             stubJwtTokens();
 
-            AuthResponse response = authService.loginWithGoogle(ID_TOKEN);
+            authService.loginWithGoogle(ID_TOKEN);
 
             // Email should remain old since new one is taken
             assertThat(existingUser.getEmail()).isEqualTo("old@example.com");
@@ -294,7 +299,7 @@ class GoogleAuthServiceTest {
             when(userRepository.save(any(User.class))).thenReturn(unverifiedUser);
             stubJwtTokens();
 
-            AuthResponse response = authService.loginWithGoogle(ID_TOKEN);
+            authService.loginWithGoogle(ID_TOKEN);
 
             ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
             verify(userRepository).save(captor.capture());
@@ -320,7 +325,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("Email already registered");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.email.already.registered");
         }
     }
 }

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Set password for Google-only account")
 public class SetPasswordRequest {
 
-    @NotBlank(message = "Password is required")
+    @NotBlank(message = "{validation.shared.password.notblank}")
     @Schema(description = "New password to set")
     private String newPassword;
 }
