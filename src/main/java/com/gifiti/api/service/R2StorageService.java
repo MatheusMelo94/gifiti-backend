@@ -48,7 +48,7 @@ public class R2StorageService {
             return url;
         } catch (SdkException e) {
             log.error("Failed to upload image to R2: {} ({})", e.getMessage(), e.getClass().getSimpleName());
-            throw new ImageUploadException("Failed to upload image. Please try again.", e);
+            throw new ImageUploadException("error.image.upload.failed", new Object[0], e);
         }
     }
 

@@ -45,14 +45,18 @@ public class PublicWishlistService {
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
                 .orElseThrow(() -> {
                     log.debug("Wishlist not found: {}", shareableId);
-                    return new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
+                    return new ResourceNotFoundException(
+                            ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                            "Wishlist", "shareableId", shareableId);
                 });
 
         // Security check: only PUBLIC wishlists can be viewed
         // Return 404 (not 403) to avoid revealing that the wishlist exists
         if (wishlist.getVisibility() != Visibility.PUBLIC) {
             log.debug("Access denied to private wishlist: {}", shareableId);
-            throw new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
+            throw new ResourceNotFoundException(
+                    ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                    "Wishlist", "shareableId", shareableId);
         }
 
         // Look up owner display name (PRIVACY: only displayName, never email or ID)

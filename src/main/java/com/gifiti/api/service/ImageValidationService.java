@@ -44,25 +44,25 @@ public class ImageValidationService {
 
     public void validate(MultipartFile file) {
         if (file == null) {
-            throw new ImageUploadException("File is required");
+            throw new ImageUploadException("error.image.validation.required", new Object[0]);
         }
         if (file.isEmpty() || file.getSize() == 0) {
-            throw new ImageUploadException("File must not be empty");
+            throw new ImageUploadException("error.image.validation.empty", new Object[0]);
         }
         if (file.getSize() > maxFileSize) {
-            throw new ImageUploadException("File size exceeds maximum of 5MB");
+            throw new ImageUploadException("error.image.validation.too.large", new Object[0]);
         }
 
         String extension = getExtension(file.getOriginalFilename());
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             log.warn("SECURITY_EVENT: Rejected file with disallowed extension: {}", extension);
-            throw new ImageUploadException("File type not allowed. Accepted: JPEG, PNG, WebP");
+            throw new ImageUploadException("error.image.validation.type.not.allowed", new Object[0]);
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
             log.warn("SECURITY_EVENT: Rejected file with disallowed MIME type: {}", contentType);
-            throw new ImageUploadException("File type not allowed. Accepted: JPEG, PNG, WebP");
+            throw new ImageUploadException("error.image.validation.type.not.allowed", new Object[0]);
         }
 
         try {
@@ -70,10 +70,10 @@ public class ImageValidationService {
             var validator = MAGIC_VALIDATORS.get(contentType.toLowerCase());
             if (validator != null && !validator.test(bytes)) {
                 log.warn("SECURITY_EVENT: File magic bytes mismatch for claimed type: {}", contentType);
-                throw new ImageUploadException("File content does not match declared type");
+                throw new ImageUploadException("error.image.validation.content.mismatch", new Object[0]);
             }
         } catch (IOException e) {
-            throw new ImageUploadException("Failed to read file content", e);
+            throw new ImageUploadException("error.image.upload.read.failed", new Object[0], e);
         }
     }
 
@@ -82,7 +82,7 @@ public class ImageValidationService {
             case "image/jpeg" -> "jpg";
             case "image/png" -> "png";
             case "image/webp" -> "webp";
-            default -> throw new ImageUploadException("Unsupported MIME type: " + mimeType);
+            default -> throw new ImageUploadException("error.image.validation.mime.unsupported", mimeType);
         };
     }
 

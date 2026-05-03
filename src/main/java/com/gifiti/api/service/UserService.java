@@ -35,7 +35,9 @@ public class UserService {
      */
     public User findById(String id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "id", id));
     }
 
     /**
@@ -47,7 +49,9 @@ public class UserService {
      */
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "email", email));
     }
 
     /**
@@ -77,7 +81,7 @@ public class UserService {
     public void requireEmailVerified(String email) {
         User user = findByEmail(email);
         if (!user.isEmailVerified()) {
-            throw new AccessDeniedException("Email verification required. Please verify your email before performing this action.");
+            throw new AccessDeniedException("error.email.verification.required", new Object[0]);
         }
     }
 

@@ -34,7 +34,7 @@ public class ImageUploadService {
     public String upload(MultipartFile file, String context, String userId) {
         // Validate context
         if (context == null || !VALID_CONTEXTS.contains(context)) {
-            throw new ImageUploadException("Context must be 'item' or 'wishlist'");
+            throw new ImageUploadException("error.image.upload.context.invalid", new Object[0]);
         }
 
         // Validate file (size, extension, MIME, magic bytes)
@@ -50,7 +50,7 @@ public class ImageUploadService {
             byte[] data = file.getBytes();
             return storageService.upload(data, key, file.getContentType());
         } catch (IOException e) {
-            throw new ImageUploadException("Failed to read file content", e);
+            throw new ImageUploadException("error.image.upload.read.failed", new Object[0], e);
         }
     }
 }

@@ -28,7 +28,9 @@ public class ProfileService {
      */
     public ProfileResponse getProfile(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "email", email));
 
         return toProfileResponse(user);
     }
@@ -53,7 +55,9 @@ public class ProfileService {
      */
     public ProfileResponse updateProfile(String email, UpdateProfileRequest request) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "User", "email", email));
 
         if (request.getDisplayName() != null) {
             user.setDisplayName(request.getDisplayName());

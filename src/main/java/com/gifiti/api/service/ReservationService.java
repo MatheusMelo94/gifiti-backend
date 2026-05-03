@@ -51,15 +51,18 @@ public class ReservationService {
 
         // Verify item exists
         WishlistItem item = wishlistItemRepository.findById(itemId)
-                .orElseThrow(() -> new ResourceNotFoundException("WishlistItem", "id", itemId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "WishlistItem", "id", itemId));
 
         // Check remaining quantity
         int remaining = item.getQuantity() - item.getReservedQuantity();
         if (remaining <= 0) {
-            throw new ConflictException("Item is fully reserved");
+            throw new ConflictException("error.reservation.fully.reserved", new Object[0]);
         }
         if (quantity > remaining) {
-            throw new ConflictException("Only " + remaining + " remaining (requested " + quantity + ")");
+            throw new ConflictException(
+                    "error.reservation.partially.available", remaining, quantity);
         }
 
         // Create reservation - compound index (itemId, reserverId) ensures one per gifter per item
@@ -74,7 +77,7 @@ public class ReservationService {
             log.info("Reservation created for item {}", itemId);
         } catch (DuplicateKeyException e) {
             log.debug("Duplicate reservation detected for item {} by user {}", itemId, reserverId);
-            throw new ConflictException("You have already reserved this item");
+            throw new ConflictException("error.reservation.already.reserved.by.user", new Object[0]);
         }
 
         // Update item reserved quantity and status
@@ -99,7 +102,9 @@ public class ReservationService {
         log.info("Cancelling all reservations for item {}", itemId);
 
         WishlistItem item = wishlistItemRepository.findById(itemId)
-                .orElseThrow(() -> new ResourceNotFoundException("WishlistItem", "id", itemId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "WishlistItem", "id", itemId));
 
         reservationRepository.deleteByItemId(itemId);
         log.info("All reservations deleted for item {}", itemId);

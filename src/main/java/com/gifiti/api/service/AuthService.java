@@ -87,7 +87,7 @@ public class AuthService {
 
         if (userRepository.existsByEmail(email)) {
             log.warn("Registration failed: email already exists: {}", email);
-            throw new ConflictException("Email already registered");
+            throw new ConflictException("error.email.already.registered", new Object[0]);
         }
 
         // Derive displayName if not provided
@@ -148,7 +148,7 @@ public class AuthService {
         // Check if account is locked (H-02 security fix)
         if (accountLockoutService.isLocked(email)) {
             log.warn("SECURITY_EVENT: Login attempt on locked account: {}", email);
-            throw new UnauthorizedException("Account temporarily locked due to multiple failed attempts. Try again later.");
+            throw new UnauthorizedException("error.auth.account.locked", new Object[0]);
         }
 
         try {
@@ -163,7 +163,7 @@ public class AuthService {
             accountLockoutService.recordSuccessfulLogin(email);
 
             User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+                    .orElseThrow(() -> new UnauthorizedException("error.auth.credentials.invalid", new Object[0]));
 
             String accessToken = jwtTokenProvider.generateAccessToken(authentication);
             String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
@@ -187,7 +187,7 @@ public class AuthService {
             // Record failed attempt for lockout tracking (H-02 security fix)
             accountLockoutService.recordFailedAttempt(email);
             log.warn("SECURITY_EVENT: Login failed for email: {} - invalid credentials", email);
-            throw new UnauthorizedException("Invalid email or password");
+            throw new UnauthorizedException("error.auth.credentials.invalid", new Object[0]);
         }
     }
 
@@ -212,13 +212,13 @@ public class AuthService {
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             log.warn("SECURITY_EVENT: Invalid refresh token presented");
-            throw new UnauthorizedException("Invalid or expired refresh token");
+            throw new UnauthorizedException("error.auth.refresh.token.invalid", new Object[0]);
         }
 
         // Check if this refresh token has been blacklisted (replay detection)
         if (isTokenBlacklisted(refreshToken)) {
             log.warn("SECURITY_EVENT: Blacklisted refresh token reuse detected");
-            throw new UnauthorizedException("Invalid or expired refresh token");
+            throw new UnauthorizedException("error.auth.refresh.token.invalid", new Object[0]);
         }
 
         String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
@@ -226,7 +226,7 @@ public class AuthService {
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> {
                     log.warn("SECURITY_EVENT: Refresh token for non-existent user: {}", username);
-                    return new UnauthorizedException("Invalid refresh token");
+                    return new UnauthorizedException("error.auth.refresh.token.malformed", new Object[0]);
                 });
 
         // Rotate: blacklist old token FIRST to close replay window, then issue new tokens
@@ -252,10 +252,10 @@ public class AuthService {
 
     public MessageResponse verifyEmail(String token) {
         User user = userRepository.findByVerificationToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("Invalid verification token"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.verification.token.invalid", new Object[0]));
 
         if (user.getVerificationTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("Verification token has expired");
+            throw new UnauthorizedException("error.auth.verification.token.expired", new Object[0]);
         }
 
         user.setEmailVerified(true);
@@ -272,7 +272,7 @@ public class AuthService {
     public MessageResponse resendVerification(String rawEmail) {
         String email = normalizeEmail(rawEmail);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UnauthorizedException("User not found"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.user.not.found", new Object[0]));
 
         if (user.isEmailVerified()) {
             return MessageResponse.builder()
@@ -329,10 +329,10 @@ public class AuthService {
 
     public MessageResponse resetPassword(String token, String newPassword) {
         User user = userRepository.findByPasswordResetToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("Invalid password reset token"));
+                .orElseThrow(() -> new UnauthorizedException("error.auth.password.reset.token.invalid", new Object[0]));
 
         if (user.getPasswordResetTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("Password reset token has expired");
+            throw new UnauthorizedException("error.auth.password.reset.token.expired", new Object[0]);
         }
 
         passwordValidationService.validate(newPassword, user.getEmail());
@@ -353,12 +353,12 @@ public class AuthService {
     public AuthResponse loginWithGoogle(String idToken) {
         GoogleTokenVerifierService.GoogleUserInfo googleUser = googleTokenVerifierService.verify(idToken);
         if (googleUser == null) {
-            throw new UnauthorizedException("Invalid Google credentials");
+            throw new UnauthorizedException("error.auth.google.credentials.invalid", new Object[0]);
         }
 
         if (!googleUser.emailVerified()) {
             log.warn("SECURITY_EVENT: Google login rejected — email not verified: {}", googleUser.email());
-            throw new UnauthorizedException("Google account email not verified");
+            throw new UnauthorizedException("error.auth.google.email.not.verified", new Object[0]);
         }
 
         String email = normalizeEmail(googleUser.email());
@@ -423,7 +423,7 @@ public class AuthService {
                     user = userRepository.save(user);
                     log.info("Created new Google user: {}", email);
                 } catch (org.springframework.dao.DuplicateKeyException e) {
-                    throw new ConflictException("Email already registered");
+                    throw new ConflictException("error.email.already.registered", new Object[0]);
                 }
             }
         }

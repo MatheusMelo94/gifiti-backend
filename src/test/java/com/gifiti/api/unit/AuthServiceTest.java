@@ -157,7 +157,8 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.verifyEmail("expired-token"))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("expired");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.verification.token.expired");
         }
     }
 
@@ -283,7 +284,8 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.resetPassword("expired-token", "NewSecureP@ss1!"))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("expired");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.password.reset.token.expired");
         }
     }
 

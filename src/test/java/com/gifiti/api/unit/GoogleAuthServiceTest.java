@@ -90,7 +90,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("Invalid Google credentials");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.google.credentials.invalid");
         }
 
         @Test
@@ -101,7 +102,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(UnauthorizedException.class)
-                    .hasMessageContaining("email not verified");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.auth.google.email.not.verified");
         }
     }
 
@@ -323,7 +325,8 @@ class GoogleAuthServiceTest {
 
             assertThatThrownBy(() -> authService.loginWithGoogle(ID_TOKEN))
                     .isInstanceOf(ConflictException.class)
-                    .hasMessageContaining("Email already registered");
+                    // Task 10: getMessage() returns the i18n key.
+                    .hasMessage("error.email.already.registered");
         }
     }
 }

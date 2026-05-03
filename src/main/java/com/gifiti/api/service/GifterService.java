@@ -69,7 +69,9 @@ public class GifterService {
      */
     public ReservationResponse cancelReservation(String itemId, String gifterId) {
         Reservation reservation = reservationRepository.findByItemIdAndReserverId(itemId, gifterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Reservation", "itemId", itemId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Reservation", "itemId", itemId));
 
         // Delete this gifter's reservation
         reservationRepository.delete(reservation);
@@ -95,10 +97,14 @@ public class GifterService {
         log.debug("User {} saving shared wishlist {}", userId, shareableId);
 
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "shareableId", shareableId));
 
         if (wishlist.getVisibility() != Visibility.PUBLIC) {
-            throw new ResourceNotFoundException("Wishlist", "shareableId", shareableId);
+            throw new ResourceNotFoundException(
+                    ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                    "Wishlist", "shareableId", shareableId);
         }
 
         if (wishlist.getOwnerUserId().equals(userId)) {
@@ -201,7 +207,9 @@ public class GifterService {
         log.debug("Gifter {} leaving shared wishlist {}", gifterId, shareableId);
 
         Wishlist wishlist = wishlistRepository.findByShareableId(shareableId)
-                .orElseThrow(() -> new ResourceNotFoundException("Wishlist", "shareableId", shareableId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "shareableId", shareableId));
 
         // Remove saved entry if it exists
         savedWishlistRepository.deleteByUserIdAndWishlistId(gifterId, wishlist.getId());

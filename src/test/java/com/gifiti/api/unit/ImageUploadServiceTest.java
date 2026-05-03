@@ -56,9 +56,12 @@ class ImageUploadServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "photo.jpg", "image/jpeg", new byte[]{1});
 
+        // Task 10: getMessage() now returns the i18n key (keyed-constructor contract,
+        // per LocalizedRuntimeException javadoc); the user-visible English text is
+        // resolved by GlobalExceptionHandler at response time.
         assertThatThrownBy(() -> uploadService.upload(file, "profile", "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("Context must be 'item' or 'wishlist'");
+                .hasMessage("error.image.upload.context.invalid");
     }
 
     @Test
@@ -69,7 +72,7 @@ class ImageUploadServiceTest {
 
         assertThatThrownBy(() -> uploadService.upload(file, null, "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("Context must be 'item' or 'wishlist'");
+                .hasMessage("error.image.upload.context.invalid");
     }
 
     @Test
