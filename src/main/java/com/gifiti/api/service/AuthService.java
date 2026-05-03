@@ -12,13 +12,16 @@ import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.BlacklistedToken;
 import com.gifiti.api.model.User;
 import com.gifiti.api.model.enums.AuthProvider;
+import com.gifiti.api.model.enums.Language;
 import com.gifiti.api.model.enums.Role;
 import com.gifiti.api.repository.BlacklistedTokenRepository;
 import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.security.JwtTokenProvider;
+import com.gifiti.api.service.EmailTemplateRenderer.RenderedEmail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -57,6 +60,7 @@ public class AuthService {
     private final AccountLockoutService accountLockoutService;
     private final PasswordValidationService passwordValidationService;
     private final EmailService emailService;
+    private final EmailTemplateRenderer emailTemplateRenderer;
     private final GoogleTokenVerifierService googleTokenVerifierService;
 
     @Value("${app.base-url}")
@@ -94,10 +98,19 @@ public class AuthService {
 
         String verificationToken = UUID.randomUUID().toString();
 
+        // Spec criteria #16, #17: persist the request locale as the new user's
+        // preferredLanguage so subsequent emails (resend, forgot-password) and
+        // server-rendered responses follow the language they registered with.
+        // Resolved from LocaleContextHolder (set by GifitiLocaleResolver from
+        // the Accept-Language header), falling back to EN_US for unsupported tags.
+        Language registrationLanguage = Language.fromLocale(LocaleContextHolder.getLocale())
+                .orElse(Language.EN_US);
+
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .displayName(displayName)
+                .preferredLanguage(registrationLanguage)
                 .roles(Set.of(Role.USER))
                 .verificationToken(hashToken(verificationToken))
                 .verificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS))
@@ -106,7 +119,7 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully: {}", savedUser.getId());
 
-        sendVerificationEmail(savedUser.getEmail(), verificationToken);
+        sendVerificationEmail(savedUser.getEmail(), registrationLanguage, verificationToken);
 
         return RegisterResponse.builder()
                 .id(savedUser.getId())
@@ -272,7 +285,11 @@ public class AuthService {
         user.setVerificationTokenExpiry(Instant.now().plus(24, ChronoUnit.HOURS));
         userRepository.save(user);
 
-        sendVerificationEmail(email, token);
+        // Spec criterion #13 + plan § Component 8: emails to a known user follow
+        // the user's stored preferredLanguage, NOT the request locale. This
+        // survives the case where a Portuguese-speaking user with a session
+        // sending Accept-Language: en-US still receives Portuguese emails.
+        sendVerificationEmail(email, user.effectiveLanguage(), token);
 
         log.info("Verification email resent to: {}", email);
         return MessageResponse.builder()
@@ -301,7 +318,10 @@ public class AuthService {
         user.setPasswordResetTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS));
         userRepository.save(user);
 
-        sendPasswordResetEmail(email, token);
+        // Spec criterion #13: the password-reset email follows the user's stored
+        // preferredLanguage, while the response message follows the request locale
+        // (anti-enumeration: identical response for found vs not-found emails).
+        sendPasswordResetEmail(email, user.effectiveLanguage(), token);
 
         log.info("Password reset email sent to: {}", email);
         return MessageResponse.builder().message(antiEnumerationMessage).build();
@@ -427,10 +447,10 @@ public class AuthService {
                 .build();
     }
 
-    private void sendVerificationEmail(String email, String token) {
+    private void sendVerificationEmail(String email, Language language, String token) {
         String verifyUrl = baseUrl + "/verify-email?token=" + token;
-        emailService.send(email, "Welcome to Gifiti - Please confirm your email",
-                EmailTemplates.verification(verifyUrl));
+        RenderedEmail rendered = emailTemplateRenderer.verification(language, verifyUrl);
+        emailService.send(email, rendered.subject(), rendered.htmlBody());
     }
 
     /**
@@ -480,9 +500,9 @@ public class AuthService {
         return email == null ? null : email.toLowerCase().trim();
     }
 
-    private void sendPasswordResetEmail(String email, String token) {
+    private void sendPasswordResetEmail(String email, Language language, String token) {
         String resetUrl = baseUrl + "/reset-password?token=" + token;
-        emailService.send(email, "Reset your Gifiti password",
-                EmailTemplates.passwordReset(resetUrl));
+        RenderedEmail rendered = emailTemplateRenderer.passwordReset(language, resetUrl);
+        emailService.send(email, rendered.subject(), rendered.htmlBody());
     }
 }

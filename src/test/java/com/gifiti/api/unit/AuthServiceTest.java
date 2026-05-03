@@ -14,6 +14,8 @@ import com.gifiti.api.security.JwtTokenProvider;
 import com.gifiti.api.service.AccountLockoutService;
 import com.gifiti.api.service.AuthService;
 import com.gifiti.api.service.EmailService;
+import com.gifiti.api.service.EmailTemplateRenderer;
+import com.gifiti.api.service.EmailTemplateRenderer.RenderedEmail;
 import com.gifiti.api.service.PasswordValidationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -53,6 +55,8 @@ class AuthServiceTest {
     @Mock
     private EmailService emailService;
     @Mock
+    private EmailTemplateRenderer emailTemplateRenderer;
+    @Mock
     private BlacklistedTokenRepository blacklistedTokenRepository;
 
     @InjectMocks
@@ -79,6 +83,13 @@ class AuthServiceTest {
                 u.setId("user-id");
                 return u;
             });
+            // Post-Task 8 (i18n): EmailTemplateRenderer is the single source of
+            // truth for the email subject + body. AuthService delegates to it
+            // and forwards the rendered fields verbatim to EmailService. The
+            // byte-for-byte English text assertion lives in
+            // EmailTemplateRendererTest; here we only verify orchestration.
+            when(emailTemplateRenderer.verification(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             RegisterResponse response = authService.register(request);
 
@@ -88,8 +99,8 @@ class AuthServiceTest {
             // assert on the key here, not the resolved string.
             assertThat(response.getMessage().messageKey()).isEqualTo("auth.register.success");
 
-            // Verify email was sent
-            verify(emailService).send(eq("test@example.com"), eq("Welcome to Gifiti - Please confirm your email"), any());
+            // Verify email was sent with the rendered (stubbed) subject + body
+            verify(emailService).send("test@example.com", "subj-stub", "body-stub");
 
             // Verify user was saved with verification token
             ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -166,6 +177,8 @@ class AuthServiceTest {
 
             when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenReturn(user);
+            when(emailTemplateRenderer.verification(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             MessageResponse response = authService.resendVerification("test@example.com");
 
@@ -202,6 +215,8 @@ class AuthServiceTest {
             User user = User.builder().email("test@example.com").build();
             when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenReturn(user);
+            when(emailTemplateRenderer.passwordReset(any(), anyString()))
+                    .thenReturn(new RenderedEmail("subj-stub", "body-stub"));
 
             MessageResponse response = authService.forgotPassword("test@example.com");
 

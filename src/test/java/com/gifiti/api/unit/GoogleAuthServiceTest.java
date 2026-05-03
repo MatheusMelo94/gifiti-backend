@@ -12,6 +12,7 @@ import com.gifiti.api.security.JwtTokenProvider;
 import com.gifiti.api.service.AccountLockoutService;
 import com.gifiti.api.service.AuthService;
 import com.gifiti.api.service.EmailService;
+import com.gifiti.api.service.EmailTemplateRenderer;
 import com.gifiti.api.service.GoogleTokenVerifierService;
 import com.gifiti.api.service.GoogleTokenVerifierService.GoogleUserInfo;
 import com.gifiti.api.service.PasswordValidationService;
@@ -53,6 +54,8 @@ class GoogleAuthServiceTest {
     private PasswordValidationService passwordValidationService;
     @Mock
     private EmailService emailService;
+    @Mock
+    private EmailTemplateRenderer emailTemplateRenderer;
     @Mock
     private GoogleTokenVerifierService googleTokenVerifierService;
 
