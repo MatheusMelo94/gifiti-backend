@@ -91,8 +91,9 @@ class AntiEnumerationMessageTest {
             assertThat(message)
                     .as("F-1 key %s must resolve to a non-blank value in pt-BR (Task 12 fills in real translation)", key)
                     .isNotBlank();
-            // Task 12 will replace the [TODO pt-BR] prefix; until then, the placeholder
-            // is acceptable — what matters is the key resolves and is not blank.
+            // Task 12 will replace the placeholder prefix with real Portuguese; until
+            // then, the placeholder is acceptable — what matters is the key resolves
+            // and is not blank.
             assertThat(message)
                     .as("F-1 key %s pt-BR value must not contain '@'", key)
                     .doesNotContain("@");

@@ -81,12 +81,12 @@ class ImageUploadServiceTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "virus.exe", "application/octet-stream", new byte[]{1});
 
-        doThrow(new ImageUploadException("File type not allowed. Accepted: JPEG, PNG, WebP"))
+        doThrow(new ImageUploadException("error.image.validation.type.not.allowed", new Object[0]))
                 .when(validationService).validate(file);
 
         assertThatThrownBy(() -> uploadService.upload(file, "item", "user1"))
                 .isInstanceOf(ImageUploadException.class)
-                .hasMessage("File type not allowed. Accepted: JPEG, PNG, WebP");
+                .hasMessage("error.image.validation.type.not.allowed");
     }
 
     @Test
