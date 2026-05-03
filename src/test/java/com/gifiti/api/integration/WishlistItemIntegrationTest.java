@@ -28,7 +28,7 @@ class WishlistItemIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        userToken = createUserAndGetToken("itemuser@example.com", "Password123!");
+        userToken = createVerifiedUserAndGetToken("itemuser@example.com", "BlueP4nther$Xyz2!");
         wishlistId = createWishlist();
     }
 
@@ -91,7 +91,7 @@ class WishlistItemIntegrationTest extends BaseIntegrationTest {
         @Test
         @DisplayName("should reject item in other user's wishlist")
         void shouldRejectItemInOtherUserWishlist() throws Exception {
-            String otherUserToken = createUserAndGetToken("otheritemuser@example.com", "Password123!");
+            String otherUserToken = createVerifiedUserAndGetToken("otheritemuser@example.com", "BlueP4nther$Xyz2!");
 
             CreateItemRequest request = CreateItemRequest.builder()
                     .name("Unauthorized Item")

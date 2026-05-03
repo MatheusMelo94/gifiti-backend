@@ -42,19 +42,22 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         @DisplayName("should reject duplicate email")
         void shouldRejectDuplicateEmail() throws Exception {
             // First registration
-            registerTestUser("duplicate@example.com", "Password123!");
+            registerTestUser("duplicate@example.com", "BlueP4nther$Xyz2!");
 
             // Second registration with same email
             RegisterRequest request = RegisterRequest.builder()
                     .email("duplicate@example.com")
-                    .password("DifferentPass123!")
+                    .password("BlueP4nther$Diff2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/register")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(containsString("already exists")));
+                    // Message changed from "Resource already exists" (generic) to
+                    // "Email already registered" (specific) when the auth path
+                    // moved to its own keyed exception (error.email.already.registered).
+                    .andExpect(jsonPath("$.message").value(containsString("already registered")));
         }
 
         @Test
@@ -62,7 +65,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         void shouldRejectInvalidEmail() throws Exception {
             RegisterRequest request = RegisterRequest.builder()
                     .email("not-an-email")
-                    .password("Password123!")
+                    .password("BlueP4nther$Xyz2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/register")
@@ -94,33 +97,38 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         @DisplayName("should login successfully with valid credentials")
         void shouldLoginSuccessfully() throws Exception {
             // Register first
-            registerTestUser("login@example.com", "Password123!");
+            registerTestUser("login@example.com", "BlueP4nther$Xyz2!");
 
             // Login
             LoginRequest request = LoginRequest.builder()
                     .email("login@example.com")
-                    .password("Password123!")
+                    .password("BlueP4nther$Xyz2!")
                     .build();
 
+            // Cookie-based auth: tokens are @JsonIgnore'd in AuthResponse
+            // and delivered as HttpOnly cookies. JSON exposes user info +
+            // expiresIn only. The Set-Cookie header must carry both tokens.
             mockMvc.perform(post("/api/v1/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.accessToken").exists())
-                    .andExpect(jsonPath("$.refreshToken").exists())
-                    .andExpect(jsonPath("$.expiresIn").isNumber());
+                    .andExpect(jsonPath("$.user.email").value("login@example.com"))
+                    .andExpect(jsonPath("$.expiresIn").isNumber())
+                    .andExpect(cookie().exists("access_token"))
+                    .andExpect(cookie().httpOnly("access_token", true))
+                    .andExpect(cookie().exists("refresh_token"));
         }
 
         @Test
         @DisplayName("should reject invalid password")
         void shouldRejectInvalidPassword() throws Exception {
             // Register first
-            registerTestUser("wrongpass@example.com", "CorrectPassword123!");
+            registerTestUser("wrongpass@example.com", "BlueP4nther$Xyz2!");
 
             // Login with wrong password
             LoginRequest request = LoginRequest.builder()
                     .email("wrongpass@example.com")
-                    .password("WrongPassword123!")
+                    .password("BlueP4nther$Wrong2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/login")
@@ -134,7 +142,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         void shouldRejectNonExistentUser() throws Exception {
             LoginRequest request = LoginRequest.builder()
                     .email("nonexistent@example.com")
-                    .password("Password123!")
+                    .password("BlueP4nther$Xyz2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/login")
@@ -153,7 +161,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         void shouldReturnCorrelationIdHeader() throws Exception {
             RegisterRequest request = RegisterRequest.builder()
                     .email("correlation@example.com")
-                    .password("Password123!")
+                    .password("BlueP4nther$Xyz2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/register")
@@ -169,7 +177,7 @@ class AuthIntegrationTest extends BaseIntegrationTest {
 
             RegisterRequest request = RegisterRequest.builder()
                     .email("echo-correlation@example.com")
-                    .password("Password123!")
+                    .password("BlueP4nther$Xyz2!")
                     .build();
 
             mockMvc.perform(post("/api/v1/auth/register")

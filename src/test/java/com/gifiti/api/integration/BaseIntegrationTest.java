@@ -122,6 +122,43 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
+     * Mark the persisted user with the given email as having verified their
+     * address. Several endpoints (wishlist create, wishlist item CRUD) gate on
+     * {@code emailVerified=true} via {@code UserService}; integration tests
+     * that exercise those endpoints must call this helper after registration
+     * so the gate passes.
+     *
+     * <p>Writes directly through {@link MongoTemplate} rather than the
+     * verify-email endpoint to avoid dragging the verification-token round-trip
+     * into every fixture.</p>
+     *
+     * <p>Convention: {@code architecture-conventions.md § Testing} — "tests own
+     * their fixtures; minimum-distance helpers live on the base class."</p>
+     */
+    protected void markEmailVerified(String email) {
+        org.springframework.data.mongodb.core.query.Query query =
+                new org.springframework.data.mongodb.core.query.Query(
+                        org.springframework.data.mongodb.core.query.Criteria.where("email").is(email));
+        org.springframework.data.mongodb.core.query.Update update =
+                new org.springframework.data.mongodb.core.query.Update().set("emailVerified", true);
+        mongoTemplate.updateFirst(query, update, com.gifiti.api.model.User.class);
+    }
+
+    /**
+     * Convenience: register a new user, mark them email-verified, and return
+     * a fresh access token. Equivalent to {@link #createUserAndGetToken} plus
+     * a {@link #markEmailVerified} call between register and login.
+     *
+     * <p>Use this in integration tests whose subject endpoints require an
+     * email-verified caller (wishlist create, wishlist item CRUD).</p>
+     */
+    protected String createVerifiedUserAndGetToken(String email, String password) throws Exception {
+        registerTestUser(email, password);
+        markEmailVerified(email);
+        return loginAndGetToken(email, password);
+    }
+
+    /**
      * Create authorization header value.
      */
     protected String bearerToken(String token) {

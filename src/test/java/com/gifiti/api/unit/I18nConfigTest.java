@@ -13,10 +13,14 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.web.servlet.LocaleResolver;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.mockito.Mockito.mock;
 
@@ -41,15 +45,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class I18nConfigTest {
 
     /**
-     * Test-only configuration providing a Mockito {@link UserRepository} so the
-     * {@link I18nConfig#localeResolver(UserRepository)} bean can be instantiated
-     * inside this lightweight Spring slice without pulling in Spring Data MongoDB.
+     * Test-only configuration providing:
+     * <ul>
+     *   <li>A Mockito {@link UserRepository} so the
+     *       {@link I18nConfig#localeResolver(UserRepository)} bean can be
+     *       instantiated inside this lightweight Spring slice without pulling
+     *       in Spring Data MongoDB.</li>
+     *   <li>A {@code @Primary} {@link MessageSource} backed by a test-only
+     *       bundle ({@code i18n-config-test-messages}) so the bundle-loading
+     *       and locale-fallback contracts can be exercised with synthetic
+     *       keys ({@code test.greeting}, {@code test.only.in.default},
+     *       {@code test.validation.notblank}) that don't pollute the
+     *       production {@code messages.properties}.</li>
+     * </ul>
      */
     @Configuration
     static class MockRepoConfig {
         @Bean
         UserRepository userRepository() {
             return mock(UserRepository.class);
+        }
+
+        @Bean
+        @Primary
+        MessageSource testMessageSource() {
+            ResourceBundleMessageSource source = new ResourceBundleMessageSource();
+            source.setBasename("i18n-config-test-messages");
+            source.setDefaultEncoding(StandardCharsets.UTF_8.name());
+            source.setUseCodeAsDefaultMessage(false);
+            source.setFallbackToSystemLocale(false);
+            source.setDefaultLocale(java.util.Locale.US);
+            return source;
         }
     }
 
