@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for shared wishlist access.
- * All endpoints require authentication — users must be logged in AND have the shareable link.
+ * Endpoints for viewing shared wishlists (anonymous) and reserving items (authenticated).
  */
 @Slf4j
 @RestController
@@ -39,22 +39,21 @@ public class PublicWishlistController {
 
     /**
      * View a shared wishlist by its shareable ID.
-     * Authentication required — only logged-in users with the link can view.
+     * Anonymous read access — anyone holding the shareable link can view a
+     * wishlist with PUBLIC visibility. PRIVATE / unknown shareableIds collapse
+     * to 404 (anti-enumeration parity).
      */
     @Operation(
             summary = "View a shared wishlist by shareable ID",
-            security = @SecurityRequirement(name = "bearerAuth"),
             responses = {
                     @ApiResponse(responseCode = "200", description = "Wishlist found"),
-                    @ApiResponse(responseCode = "401", description = "Authentication required"),
                     @ApiResponse(responseCode = "404", description = "Wishlist not found or not public",
                             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
             })
     @GetMapping("/{shareableId}")
     public ResponseEntity<PublicWishlistResponse> getPublicWishlist(
-            @PathVariable String shareableId,
-            Authentication authentication) {
-        log.debug("Shared wishlist request for: {} by user: {}", shareableId, authentication.getName());
+            @PathVariable String shareableId) {
+        log.debug("Shared wishlist request for: {}", shareableId);
         PublicWishlistResponse response = publicWishlistService.findByShareableId(shareableId);
         return ResponseEntity.ok(response);
     }

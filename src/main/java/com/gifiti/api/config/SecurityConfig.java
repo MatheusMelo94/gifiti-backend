@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -129,7 +130,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public authentication endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        // Shared wishlists require authentication (link + login)
+                        // Public read-only access to shared wishlists (link == authorization).
+                        // GET only and single-segment wildcard so reserve/unreserve and any
+                        // future write paths under /api/v1/public/** stay authenticated via
+                        // the .anyRequest().authenticated() fallback below.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/public/wishlists/*").permitAll()
                         // Health check only - other actuator endpoints require auth
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").authenticated()

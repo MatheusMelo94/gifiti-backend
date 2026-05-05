@@ -12,6 +12,8 @@ import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,6 +30,14 @@ public class PublicWishlistService {
     private final WishlistRepository wishlistRepository;
     private final WishlistItemRepository wishlistItemRepository;
     private final UserRepository userRepository;
+    private final MessageSource messageSource;
+
+    /**
+     * Bundle key for the localized owner displayName fallback shown to
+     * anonymous viewers when the owner has not set a displayName.
+     * Replaces the pre-006 email-prefix fallback (Security finding F-2).
+     */
+    private static final String OWNER_FALLBACK_KEY = "wishlist.owner.anonymous.fallback";
 
     /**
      * Get a public wishlist by its shareable ID.
@@ -85,8 +95,16 @@ public class PublicWishlistService {
     }
 
     /**
-     * Resolve owner display name with fallback to email prefix.
-     * PRIVACY: Only returns displayName — never email address or internal ID.
+     * Resolve owner display name with a localized fallback for anonymous
+     * viewers.
+     *
+     * <p>PRIVACY (Security finding F-2): NEVER returns an email-derived value.
+     * When {@code displayName} is null/blank or the owner record is missing,
+     * the response uses {@link MessageSource} to resolve the
+     * {@code wishlist.owner.anonymous.fallback} key against the request locale
+     * (en-US: "Wishlist owner"; pt-BR: "Anônimo"). The pre-006 email-prefix
+     * fallback was removed entirely — there is no code path from this method
+     * back to the owner's email.
      */
     private String resolveOwnerDisplayName(String ownerUserId) {
         User owner = userRepository.findById(ownerUserId).orElse(null);
@@ -95,12 +113,10 @@ public class PublicWishlistService {
             return owner.getDisplayName();
         }
 
-        // Fallback: extract prefix from email (e.g., "maria" from "maria@gmail.com")
-        if (owner != null && owner.getEmail() != null) {
-            return owner.getEmail().split("@")[0];
-        }
-
-        return "Unknown";
+        return messageSource.getMessage(
+                OWNER_FALLBACK_KEY,
+                null,
+                LocaleContextHolder.getLocale());
     }
 
     /**

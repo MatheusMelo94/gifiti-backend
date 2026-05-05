@@ -30,7 +30,18 @@ public class PublicWishlistResponse {
     @Schema(description = "Wishlist description", example = "Things I'd love for my birthday")
     private String description;
 
-    @Schema(description = "Owner's display name", example = "Maria Santos")
+    /**
+     * Owner's display name. If the owner has not set displayName, this
+     * returns a localized fallback (en-US: "Wishlist owner"; pt-BR:
+     * "Anônimo"), NEVER an email-derived value.
+     *
+     * <p>Pre-006 implementations fell back to the email local-part
+     * (e.g. "maria.santos" from "maria.santos@gmail.com"). That path
+     * was removed under Security finding F-2 once anonymous viewing
+     * shipped — anonymous viewers see only the localized placeholder.
+     */
+    @Schema(description = "Owner's display name (localized fallback when unset)",
+            example = "Maria Santos")
     private String ownerDisplayName;
 
     @Schema(description = "Event date", example = "2026-06-15")
