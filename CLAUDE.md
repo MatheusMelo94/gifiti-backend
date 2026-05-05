@@ -26,6 +26,8 @@ Java 21: Follow standard conventions
 
 - 001-gift-wishlist-backend: Added Java 21 + Spring Boot 3.x, Spring Security, Spring Data MongoDB, Jakarta Validation
 - 004-image-upload: Added image upload via Cloudflare R2 (AWS S3 SDK), coverImageUrl on Wishlist model, triple-layer file validation
+- 005-i18n-backend-support: Added backend i18n (en-US / pt-BR) — Spring MessageSource + LocaleResolver, locale-aware validation/exception/success messages, localized email templates, PUT /profile preferredLanguage field
+- 006-anonymous-public-wishlist-viewing: Removed authentication gate on GET /api/v1/public/wishlists/{shareableId}; localized owner displayName fallback (mitigates F-2 email-prefix leak); reserve/unreserve still require auth + email verification
 
 <!-- MANUAL ADDITIONS START -->
 
