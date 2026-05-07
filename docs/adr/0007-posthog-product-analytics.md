@@ -33,6 +33,8 @@ This ADR ratifies the nine plan decisions (A–I), the SDK-substitution that occ
 - **Decision.** Use PostHog Cloud at `https://eu.i.posthog.com`. EU region simplifies LGPD adequacy: PostHog's standard DPA covers EU↔Brazil transfer; PostHog's standard sub-processor list applies.
 - **Consequences.** Zero ops burden; vendor lock-in mitigated by export/import availability. **LGPD lawful basis required** — see Decision C and security-findings F-1 (DPA execution, lawful basis selection).
 
+**Revision 2026-05-07 (post Code Reviewer Finding 0001 follow-up):** Decision A originally specified EU host (`https://eu.i.posthog.com`) on the rationale that LGPD adequacy under Art. 33 simplified international-transfer compliance. **This rationale was based on an incorrect assumption** — user's PostHog account/project lives at `us.posthog.com/project/412989` (US-region), and Decision A was authored without verifying account region against reality. Decision A revised to `https://us.i.posthog.com`. LGPD Art. 33 compliance now relies on the Standard Contractual Clauses embedded in PostHog's DPA (signed 2026-05-07), which ANPD recognizes as a valid transfer mechanism for non-adequacy jurisdictions. F-2 privacy policy disclosure (still open) must accordingly reference "PostHog Cloud (US), processed under PostHog DPA SCCs" rather than "EU adequacy."
+
 ### Decision B — Instrumentation surface: per-event split
 
 - **Context.** The 7-event taxonomy mixes events with authoritative server state (creation, persistence-driven counts) and events tied to client UX (referrer, share-channel selection).
@@ -127,7 +129,10 @@ This ADR ratifies the nine plan decisions (A–I), the SDK-substitution that occ
 
 | Decision | LGPD lawful-basis citation | Notes |
 |---|---|---|
-| A (EU host) | Art. 33 (international transfer) | EU↔Brazil transfer covered by PostHog DPA. |
+| A (EU host) [†] | Art. 33 (international transfer) | EU↔Brazil transfer covered by PostHog DPA. |
+
+[†] Revised 2026-05-07 to **US host** (`https://us.i.posthog.com`) — see Decision A revision note above. Art. 33 compliance now via SCCs in the PostHog DPA (signed 2026-05-07), not adequacy. Original row preserved for audit-trail discipline.
+
 | C (identity model) | Art. 5, XI (pseudonymization) | `distinctId = userId` (Mongo ObjectId) is pseudonymous. |
 | D (PII allowlist) | Art. 6, IX (data minimization) | Wrapper enforces; no email / displayName / titles / images leave the process. |
 | F (async) | (no specific citation) | Async emission does not affect the lawful-basis analysis. |

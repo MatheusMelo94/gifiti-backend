@@ -41,7 +41,7 @@ The frontend owns **2 events** and the identity-stitching dance.
 
 Frontend responsibilities:
 
-1. **Initialize `posthog-js`** with the EU host (`https://eu.i.posthog.com`) — region must match the backend's `POSTHOG_HOST`.
+1. **Initialize `posthog-js`** with the US host (`https://us.i.posthog.com`) — region must match the backend's `POSTHOG_HOST`. (US matches the actual PostHog account region; LGPD Art. 33 compliance via PostHog DPA SCCs — see ADR 0007 Decision A revision 2026-05-07.)
 2. **Emit `wishlist_viewed`** from the wishlist view page. `referrer` from `document.referrer`; `item_count` from the rendered response. `viewer_logged_in` from the session state (true iff a JWT cookie is present and valid).
 3. **Emit `wishlist_shared`** from share-button click handlers. `share_channel` is one of the four documented enum values; do not invent new ones without an architect-approved taxonomy update.
 4. **Identity stitching after signup.** After a successful signup response, call `posthog.identify(userId, { $anon_distinct_id: anonId })` where `anonId` is the pre-login distinctId PostHog assigned to the anonymous session. Test in incognito (definition-of-done item #2 from the cofounder spec).

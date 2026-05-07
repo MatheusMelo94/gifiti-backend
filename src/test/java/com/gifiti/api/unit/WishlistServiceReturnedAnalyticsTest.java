@@ -65,7 +65,7 @@ class WishlistServiceReturnedAnalyticsTest {
     @BeforeEach
     void wireDefaults() {
         // Threshold: 7 days, matching the plan's recommended default (OQ-4).
-        PostHogProperties props = new PostHogProperties(true, "key", "https://eu.i.posthog.com", 7);
+        PostHogProperties props = new PostHogProperties(true, "key", "https://us.i.posthog.com", 7);
         ReflectionTestUtils.setField(service, "postHogProperties", props);
 
         // Dedupe cache permits emission by default in this suite. The

@@ -57,7 +57,7 @@ mongosh "<mongo-uri>" --quiet --eval '
 # PostHog person search by email (PostHog Personal API Key required).
 # Replace <posthog-api-key> and <project-id>.
 
-curl -sS -G "https://eu.i.posthog.com/api/projects/<project-id>/persons/" \
+curl -sS -G "https://us.i.posthog.com/api/projects/<project-id>/persons/" \
   -H "Authorization: Bearer <posthog-api-key>" \
   --data-urlencode 'search=<user-email>' | jq '.results[].distinct_ids'
 ```
@@ -77,7 +77,7 @@ The `<person-id>` is PostHog's internal ID, NOT the `distinctId`. Get it via the
 ```bash
 # Get PostHog's internal person ID for this distinctId.
 # Replace <distinct-id> with the value from Step 1.
-PERSON_ID=$(curl -sS -G "https://eu.i.posthog.com/api/projects/<project-id>/persons/" \
+PERSON_ID=$(curl -sS -G "https://us.i.posthog.com/api/projects/<project-id>/persons/" \
   -H "Authorization: Bearer <posthog-api-key>" \
   --data-urlencode "distinct_id=<distinct-id>" \
   | jq -r '.results[0].id')
@@ -94,7 +94,7 @@ If `PERSON_ID` is `null` or empty, the person never had any events captured — 
 
 curl -sS -X DELETE \
   -H "Authorization: Bearer <posthog-api-key>" \
-  "https://eu.i.posthog.com/api/projects/<project-id>/persons/$PERSON_ID/"
+  "https://us.i.posthog.com/api/projects/<project-id>/persons/$PERSON_ID/"
 ```
 
 **Expected response:** HTTP 204 No Content. Empty body.
@@ -103,7 +103,7 @@ curl -sS -X DELETE \
 
 ```bash
 # Re-query — should return empty.
-curl -sS -G "https://eu.i.posthog.com/api/projects/<project-id>/persons/" \
+curl -sS -G "https://us.i.posthog.com/api/projects/<project-id>/persons/" \
   -H "Authorization: Bearer <posthog-api-key>" \
   --data-urlencode "distinct_id=<distinct-id>" \
   | jq '.results | length'
@@ -122,7 +122,7 @@ If session replay is active, recordings are scoped per `distinct_id` and PostHog
 
 ```bash
 # List session recordings for this distinct_id.
-curl -sS -G "https://eu.i.posthog.com/api/projects/<project-id>/session_recordings/" \
+curl -sS -G "https://us.i.posthog.com/api/projects/<project-id>/session_recordings/" \
   -H "Authorization: Bearer <posthog-api-key>" \
   --data-urlencode "person_uuid=$PERSON_ID" \
   | jq '.results | length'
@@ -133,14 +133,14 @@ If non-zero, delete each recording explicitly:
 
 ```bash
 # Get the list of recording IDs.
-curl -sS -G "https://eu.i.posthog.com/api/projects/<project-id>/session_recordings/" \
+curl -sS -G "https://us.i.posthog.com/api/projects/<project-id>/session_recordings/" \
   -H "Authorization: Bearer <posthog-api-key>" \
   --data-urlencode "person_uuid=$PERSON_ID" \
   | jq -r '.results[].id' \
   | while read RECORDING_ID; do
       curl -sS -X DELETE \
         -H "Authorization: Bearer <posthog-api-key>" \
-        "https://eu.i.posthog.com/api/projects/<project-id>/session_recordings/$RECORDING_ID/"
+        "https://us.i.posthog.com/api/projects/<project-id>/session_recordings/$RECORDING_ID/"
     done
 ```
 
@@ -243,7 +243,7 @@ Reply to the user's request email within the same business day:
 >
 > Your gifiti account and all associated data have been deleted. This includes:
 > - Your account record and all wishlists, items, and reservations.
-> - Your event history in our analytics provider (PostHog Cloud EU).
+> - Your event history in our analytics provider (PostHog Cloud US).
 > - Cover images uploaded to your wishlists.
 >
 > Per LGPD Art. 18 VI, this deletion is irreversible. We retain a record of the deletion event itself for compliance purposes (5-year retention per LGPD Art. 16), but no personally identifiable information beyond your email and the timestamp.
