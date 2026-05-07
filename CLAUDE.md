@@ -41,5 +41,8 @@ Java 21: Follow standard conventions
 - `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` must NEVER be committed
 - R2 API token should have minimal permissions (Object Read & Write on single bucket)
 - Image upload rate limited to 20/hour per user
+- `POSTHOG_API_KEY` must NEVER be committed; per-environment keys (prod != staging != local); rotate via PostHog dashboard on suspected compromise.
+- PostHog DPA executed and on file before `POSTHOG_ENABLED=true` in production (see security-findings.md F-1).
+- Account-deletion runbook drafted in `docs/` before `POSTHOG_ENABLED=true` in production (see security-findings.md F-3 Track 1).
 
 <!-- MANUAL ADDITIONS END -->
