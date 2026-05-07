@@ -141,6 +141,15 @@
             <artifactId>s3</artifactId>
         </dependency>
 
+        <!-- PostHog server-side SDK (feature 007 — product analytics).
+             Wrapped by com.gifiti.api.analytics.PostHogClient — services never
+             call this SDK directly. See docs/posthog-backend-integration.md. -->
+        <dependency>
+            <groupId>com.posthog</groupId>
+            <artifactId>posthog-server</artifactId>
+            <version>2.5.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
