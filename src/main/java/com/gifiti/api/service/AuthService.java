@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.dto.i18n.LocalizedMessage;
 import com.gifiti.api.dto.request.LoginRequest;
 import com.gifiti.api.dto.request.RefreshTokenRequest;
@@ -14,6 +15,7 @@ import com.gifiti.api.model.User;
 import com.gifiti.api.model.enums.AuthProvider;
 import com.gifiti.api.model.enums.Language;
 import com.gifiti.api.model.enums.Role;
+import com.gifiti.api.model.enums.SignupTrigger;
 import com.gifiti.api.repository.BlacklistedTokenRepository;
 import com.gifiti.api.repository.UserRepository;
 import com.gifiti.api.security.JwtTokenProvider;
@@ -35,6 +37,8 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -62,6 +66,7 @@ public class AuthService {
     private final EmailService emailService;
     private final EmailTemplateRenderer emailTemplateRenderer;
     private final GoogleTokenVerifierService googleTokenVerifierService;
+    private final PostHogClient postHogClient;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -120,6 +125,28 @@ public class AuthService {
         log.info("User registered successfully: {}", savedUser.getId());
 
         sendVerificationEmail(savedUser.getEmail(), registrationLanguage, verificationToken);
+
+        // Feature 007 / Decision H: emit signup_completed AFTER persistence
+        // succeeds so the event reflects authoritative server state. The
+        // wrapper is fail-open (security-findings.md F-6) — wrapping in a
+        // defensive try/catch here is defense-in-depth. PostHog must never
+        // be a reason a user-facing signup fails.
+        try {
+            SignupTrigger trigger = request.getSignupTrigger() != null
+                    ? request.getSignupTrigger()
+                    : SignupTrigger.DIRECT;
+            Map<String, Object> props = new HashMap<>();
+            props.put("signup_trigger", trigger.name());
+            String referrer = request.getReferrerWishlistId();
+            if (referrer != null && !referrer.isBlank()) {
+                props.put("referrer_wishlist_id", referrer);
+            }
+            postHogClient.capture("signup_completed", savedUser.getId(), props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during signup_completed emission: {}",
+                    analyticsFailure.getMessage());
+        }
 
         return RegisterResponse.builder()
                 .id(savedUser.getId())

@@ -58,6 +58,8 @@ class AuthServiceTest {
     private EmailTemplateRenderer emailTemplateRenderer;
     @Mock
     private BlacklistedTokenRepository blacklistedTokenRepository;
+    @Mock
+    private com.gifiti.api.analytics.PostHogClient postHogClient;
 
     @InjectMocks
     private AuthService authService;
