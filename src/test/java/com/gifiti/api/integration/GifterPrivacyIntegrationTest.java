@@ -28,8 +28,8 @@ class GifterPrivacyIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        ownerToken = createUserAndGetToken("privowner@example.com", "SecurePass123!");
-        reserverToken = createUserAndGetToken("secretreserver@example.com", "SecurePass123!");
+        ownerToken = createVerifiedUserAndGetToken("privowner@example.com", "SecurePass123!");
+        reserverToken = createVerifiedUserAndGetToken("secretreserver@example.com", "SecurePass123!");
 
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()
                 .title("Privacy Wishlist")

@@ -28,10 +28,10 @@ class GifterIntegrationTest extends BaseIntegrationTest {
     @BeforeEach
     void setup() throws Exception {
         // Create a wishlist owner
-        ownerToken = createUserAndGetToken("owner@example.com", "SecurePass123!");
+        ownerToken = createVerifiedUserAndGetToken("owner@example.com", "SecurePass123!");
 
         // Create a user who will reserve items
-        reserverToken = createUserAndGetToken("reserver@example.com", "SecurePass123!");
+        reserverToken = createVerifiedUserAndGetToken("reserver@example.com", "SecurePass123!");
 
         // Owner creates a public wishlist with an item
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()

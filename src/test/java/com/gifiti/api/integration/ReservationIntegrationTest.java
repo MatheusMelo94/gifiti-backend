@@ -27,8 +27,8 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        ownerToken = createUserAndGetToken("owner@example.com", "Password123!");
-        reserverToken = createUserAndGetToken("reserver@example.com", "Password123!");
+        ownerToken = createVerifiedUserAndGetToken("owner@example.com", "Mvn-Build-Cyan-Glow-2026!");
+        reserverToken = createVerifiedUserAndGetToken("reserver@example.com", "Mvn-Build-Cyan-Glow-2026!");
 
         // Create public wishlist
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()
@@ -82,11 +82,11 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
                     .andExpect(status().isOk());
 
             // Second reservation fails with 409 Conflict
-            String anotherReserverToken = createUserAndGetToken("another@example.com", "Password123!");
+            String anotherReserverToken = createVerifiedUserAndGetToken("another@example.com", "Mvn-Build-Cyan-Glow-2026!");
             mockMvc.perform(post("/api/v1/public/wishlists/" + shareableId + "/items/" + itemId + "/reserve")
                             .header("Authorization", bearerToken(anotherReserverToken)))
                     .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.message").value(containsString("already reserved")));
+                    .andExpect(jsonPath("$.message").value(containsString("fully reserved")));
         }
 
         @Test
@@ -170,7 +170,7 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
                     .andExpect(status().isOk());
 
             // Another user tries to unreserve
-            String otherToken = createUserAndGetToken("attacker@example.com", "Password123!");
+            String otherToken = createVerifiedUserAndGetToken("attacker@example.com", "Mvn-Build-Cyan-Glow-2026!");
 
             mockMvc.perform(delete("/api/v1/wishlists/" + wishlistId + "/items/" + itemId + "/reservation")
                             .header("Authorization", bearerToken(otherToken)))

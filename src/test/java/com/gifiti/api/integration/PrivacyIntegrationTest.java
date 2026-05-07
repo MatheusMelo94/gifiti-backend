@@ -27,8 +27,8 @@ class PrivacyIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        ownerToken = createUserAndGetToken("privacyowner@example.com", "Password123!");
-        reserverToken = createUserAndGetToken("privacyreserver@example.com", "Password123!");
+        ownerToken = createVerifiedUserAndGetToken("privacyowner@example.com", "Mvn-Build-Cyan-Glow-2026!");
+        reserverToken = createVerifiedUserAndGetToken("privacyreserver@example.com", "Mvn-Build-Cyan-Glow-2026!");
 
         CreateWishlistRequest wishlistRequest = CreateWishlistRequest.builder()
                 .title("Privacy Test Wishlist")
