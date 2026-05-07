@@ -87,3 +87,9 @@ HELP.md
 .specify/
 specs/
 .claude/
+
+# Local agent workflow tooling (personal, not project artifacts)
+docs/superpowers/
+
+# Local-only frontend integration drafts (kept out of git per project convention)
+docs/anonymous-public-wishlist-frontend-integration.md
