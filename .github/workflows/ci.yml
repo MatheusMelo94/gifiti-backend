@@ -51,22 +51,15 @@ jobs:
         run: chmod +x ./mvnw
 
       - name: Build & test
-        # Runs the full unit + integration suite, with the legacy integration
-        # tests still excluded by explicit class name. The 4 targeted re-enables
-        # (Auth, Profile, Wishlist, WishlistItem) plus the i18n feature suite
-        # under com.gifiti.api.integration.i18n.* now run in CI as of Task 11
-        # of the i18n feature.
-        #
-        # Excluded by class name: 9 pre-existing integration tests with fixture
-        # drift unrelated to this feature. Each top-level entry is paired with
-        # `$*` to also catch nested `@Nested` classes (Surefire treats nested
-        # classes as distinct types for filtering). Tracked separately; restore
-        # individual entries by removing them from the exclusion list once the
-        # targeted fixture refresh lands.
+        # Runs the full unit + integration suite. The legacy integration-test
+        # exclusion list (9 classes carrying fixture drift) was dropped after
+        # commit b465ce8 repaired the underlying causes — fixture password
+        # rejected by PasswordValidationService.common_pattern, five suites
+        # calling the unverified-user helper for verified-only endpoints, and
+        # two stale assertions drifted from features 005 (i18n) and 006 (auth
+        # gate removal). Cold-compile baseline at PR-#12 merge: 400/0/0/0.
         run: |
-          ./mvnw --batch-mode --no-transfer-progress \
-            -Dtest='!com.gifiti.api.integration.AccountLockoutIntegrationTest,!com.gifiti.api.integration.GifterIntegrationTest,!com.gifiti.api.integration.GifterIntegrationTest$*,!com.gifiti.api.integration.GifterPrivacyIntegrationTest,!com.gifiti.api.integration.ImageUploadIntegrationTest,!com.gifiti.api.integration.PrivacyIntegrationTest,!com.gifiti.api.integration.PublicWishlistIntegrationTest,!com.gifiti.api.integration.PublicWishlistIntegrationTest$*,!com.gifiti.api.integration.ReservationIntegrationTest,!com.gifiti.api.integration.ReservationIntegrationTest$*,!com.gifiti.api.integration.UserPersistenceTest,!com.gifiti.api.integration.WishlistCoverImageIntegrationTest,!com.gifiti.api.integration.WishlistCoverImageIntegrationTest$*' \
-            test
+          ./mvnw --batch-mode --no-transfer-progress test
 
       - name: Upload Surefire reports on failure or cancellation
         # `always()` covers success/failure/cancelled. We want reports on
