@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.dto.response.ReservationResponse;
 import com.gifiti.api.exception.ConflictException;
 import com.gifiti.api.exception.ResourceNotFoundException;
@@ -13,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for item reservation operations.
@@ -31,6 +34,7 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final WishlistItemRepository wishlistItemRepository;
+    private final PostHogClient postHogClient;
 
     /**
      * Reserve an item for a user.
@@ -86,6 +90,24 @@ public class ReservationService {
             item.setStatus(ItemStatus.RESERVED);
         }
         wishlistItemRepository.save(item);
+
+        // Feature 007 / T8: emit item_reserved AFTER persist on the WINNING
+        // reservation only. Idempotent retries (DuplicateKeyException above)
+        // and over-quota requests (ConflictException above) take their early
+        // exits before reaching here, so we never double-emit. Properties
+        // limited to §5.6 allowlist (wishlist_id, item_id, reserver_user_id).
+        // Fail-open per F-6.
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("wishlist_id", item.getWishlistId());
+            props.put("item_id", itemId);
+            props.put("reserver_user_id", reserverId);
+            postHogClient.capture("item_reserved", reserverId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during item_reserved emission: {}",
+                    analyticsFailure.getMessage());
+        }
 
         return ReservationResponse.reserved(itemId);
     }

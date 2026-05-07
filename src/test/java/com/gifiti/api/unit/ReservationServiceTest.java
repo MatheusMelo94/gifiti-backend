@@ -38,6 +38,9 @@ class ReservationServiceTest {
     @Mock
     private WishlistItemRepository wishlistItemRepository;
 
+    @Mock
+    private com.gifiti.api.analytics.PostHogClient postHogClient;
+
     @InjectMocks
     private ReservationService reservationService;
 
