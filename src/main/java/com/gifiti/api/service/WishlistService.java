@@ -1,6 +1,7 @@
 package com.gifiti.api.service;
 
 import com.gifiti.api.analytics.PostHogClient;
+import com.gifiti.api.analytics.PostHogProperties;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.WishlistListResponse;
@@ -23,6 +24,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +43,7 @@ public class WishlistService {
     private final ReservationRepository reservationRepository;
     private final WishlistMapper wishlistMapper;
     private final PostHogClient postHogClient;
+    private final PostHogProperties postHogProperties;
 
     /**
      * Create a new wishlist for the authenticated user.
@@ -133,7 +137,37 @@ public class WishlistService {
         log.debug("Finding wishlist {} for user {}", id, userId);
 
         Wishlist wishlist = findAndVerifyOwnership(id, userId);
+
+        // Feature 007 / T9 — wishlist_returned per OQ-1 (X): owner returns to
+        // view their own wishlist >= N days after creation. Non-owner reads
+        // exit upstream via AccessDeniedException, so reaching this point
+        // already proves ownership. PostHog handles dedupe at the analytics
+        // layer; backend does not.
+        emitWishlistReturnedIfThresholdMet(wishlist, userId);
+
         return wishlistMapper.toResponse(wishlist, getItemCount(id));
+    }
+
+    private void emitWishlistReturnedIfThresholdMet(Wishlist wishlist, String userId) {
+        if (wishlist.getCreatedAt() == null) {
+            return;
+        }
+        long daysSinceCreation = ChronoUnit.DAYS.between(wishlist.getCreatedAt(), Instant.now());
+        int threshold = postHogProperties.returnThresholdDays();
+        if (daysSinceCreation < threshold) {
+            return;
+        }
+
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("user_id", userId);
+            props.put("days_since_creation", daysSinceCreation);
+            postHogClient.capture("wishlist_returned", userId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during wishlist_returned emission: {}",
+                    analyticsFailure.getMessage());
+        }
     }
 
     /**
