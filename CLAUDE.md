@@ -42,8 +42,9 @@ Java 21: Follow standard conventions
 - R2 API token should have minimal permissions (Object Read & Write on single bucket)
 - Image upload rate limited to 20/hour per user
 - `POSTHOG_API_KEY` must NEVER be committed; per-environment keys (prod != staging != local); rotate via PostHog dashboard on suspected compromise.
-- PostHog DPA executed and on file before `POSTHOG_ENABLED=true` in production (see security-findings.md F-1).
-- Account-deletion runbook drafted in `docs/` before `POSTHOG_ENABLED=true` in production (see security-findings.md F-3 Track 1).
+- PostHog DPA executed (signed 2026-05-07) — **F-1 cleared**. Renew per PostHog cadence (annual / on amendment).
+- Account-deletion runbook drafted in `docs/posthog-account-deletion-runbook.md` before `POSTHOG_ENABLED=true` in production (security-findings.md F-3 Track 1). **STILL OPEN.**
+- Privacy policy must disclose PostHog as a sub-processor before `POSTHOG_ENABLED=true` in production (security-findings.md F-2). **STILL OPEN.**
 
 ## Telemetry
 
