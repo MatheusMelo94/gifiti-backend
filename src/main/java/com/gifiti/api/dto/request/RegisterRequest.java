@@ -1,5 +1,6 @@
 package com.gifiti.api.dto.request;
 
+import com.gifiti.api.model.enums.SignupTrigger;
 import com.gifiti.api.validation.NoHtml;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -45,4 +46,37 @@ public class RegisterRequest {
     @NoHtml
     @Schema(description = "Optional display name (derived from email if absent)", example = "Maria Santos")
     private String displayName;
+
+    /**
+     * Decision H (plan v2 §3, §5.5): optional analytics field describing the
+     * UX context that originated the signup. Server-side default is
+     * {@link SignupTrigger#DIRECT} if omitted; surfaced in the
+     * {@code signup_completed} PostHog event as {@code signup_trigger}.
+     */
+    @Schema(description = "Analytics: what action triggered the signup",
+            example = "CREATED_WISHLIST")
+    private SignupTrigger signupTrigger;
+
+    /**
+     * Decision H: when the signup was triggered from a specific public
+     * wishlist (e.g. "Create my own list" CTA on a friend's birthday list),
+     * this field carries that wishlist's {@code shareableId} (NanoID, the
+     * 21-char URL-safe identifier exposed in share-link URLs at
+     * {@code /wishlists/share/{shareableId}}). Rejected if non-empty and
+     * malformed. Surfaced as {@code referrer_wishlist_id} in the
+     * {@code signup_completed} event.
+     *
+     * <p>Plan §5.5 originally specified "Mongo ObjectId 24-char hex". This
+     * was ratified as a deviation on 2026-05-06 (post Code Reviewer Finding
+     * 0001): the frontend has the {@code shareableId} from the share-link
+     * URL with no extra fetch, and the analytic purpose is share-attribution
+     * which keys naturally to the {@code shareableId}.
+     */
+    @Pattern(
+            regexp = "^[A-Za-z0-9_-]{21}$|^$",
+            message = "{validation.shared.wishlistId.invalid}"
+    )
+    @Schema(description = "Analytics: shareableId (NanoID) of the wishlist that referred this signup, if any",
+            example = "V1StGXR8_Z5jdHi6B-myT")
+    private String referrerWishlistId;
 }

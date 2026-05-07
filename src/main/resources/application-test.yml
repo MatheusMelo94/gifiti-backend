@@ -27,6 +27,10 @@ app:
     rate-limit-per-hour: 20
   rate-limit:
     enabled: false
+  # Feature 007: integration tests must never emit analytics. Disabled
+  # explicitly so a future env-var leak cannot turn it on.
+  posthog:
+    enabled: false
 
 springdoc:
   api-docs:

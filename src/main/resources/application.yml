@@ -91,6 +91,16 @@ app:
   upload:
     max-file-size: 5242880
     rate-limit-per-hour: 20
+  posthog:
+    # Split-gate (feature 007, security-findings.md F-1, F-3):
+    # default false everywhere. Production enablement happens by flipping
+    # POSTHOG_ENABLED=true in Render's dashboard ONLY after the PostHog
+    # DPA is signed and the account-deletion runbook is drafted. Local /
+    # CI / staging / prod all start disabled — no env-conditional default.
+    enabled: ${POSTHOG_ENABLED:false}
+    api-key: ${POSTHOG_API_KEY:}
+    host: ${POSTHOG_HOST:https://eu.i.posthog.com}
+    return-threshold-days: ${POSTHOG_RETURN_THRESHOLD_DAYS:7}
 
 logging:
   level:

@@ -20,7 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Integration tests for shared wishlist viewing.
- * All access requires authentication — users must be logged in AND have the shareable link.
+ * Anonymous (unauthenticated) GET is permitted on PUBLIC wishlists since feature 006
+ * (2026-05-05). PRIVATE wishlists return 404 regardless of auth state.
  */
 class PublicWishlistIntegrationTest extends BaseIntegrationTest {
 
@@ -29,8 +30,8 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setup() throws Exception {
-        ownerToken = createUserAndGetToken("publicowner@example.com", "Password123!");
-        viewerToken = createUserAndGetToken("viewer@example.com", "Password123!");
+        ownerToken = createVerifiedUserAndGetToken("publicowner@example.com", "Mvn-Build-Cyan-Glow-2026!");
+        viewerToken = createVerifiedUserAndGetToken("viewer@example.com", "Mvn-Build-Cyan-Glow-2026!");
     }
 
     @Nested
@@ -96,13 +97,19 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should require authentication to view shared wishlist")
-        void shouldRequireAuthenticationToViewSharedWishlist() throws Exception {
-            String shareableId = createPublicWishlist("Auth Required");
+        @DisplayName("should allow anonymous (unauthenticated) GET on shared wishlist")
+        void shouldAllowAnonymousAccessToSharedWishlist() throws Exception {
+            // Pins behavior introduced by feature 006 (anonymous public wishlist viewing,
+            // 2026-05-05): GET /api/v1/public/wishlists/{shareableId} is intentionally
+            // open to unauthenticated requests. See CLAUDE.md "Recent Changes" entry for
+            // 006-anonymous-public-wishlist-viewing.
+            String shareableId = createPublicWishlist("Anonymous Access");
 
-            // No Authorization header → 401
+            // No Authorization header → 200 with public wishlist body
             mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId))
-                    .andExpect(status().isUnauthorized());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Anonymous Access"))
+                    .andExpect(jsonPath("$.shareableId").value(shareableId));
         }
     }
 

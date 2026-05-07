@@ -17,6 +17,13 @@ springdoc:
 app:
   swagger:
     enabled: false
+  # Feature 007 split-gate: prod starts with PostHog disabled. Operator
+  # flips POSTHOG_ENABLED=true in Render ONLY after PostHog DPA is signed
+  # AND account-deletion runbook is drafted (security-findings.md F-1, F-3).
+  # The hard-set below is defense-in-depth — a misconfigured env var cannot
+  # accidentally enable emission before the prerequisites are met.
+  posthog:
+    enabled: false
 
 # Logging in prod: INFO root, no DEBUG noise.
 logging:

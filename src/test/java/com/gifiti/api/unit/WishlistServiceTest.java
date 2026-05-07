@@ -52,6 +52,15 @@ class WishlistServiceTest {
     @Mock
     private WishlistMapper wishlistMapper;
 
+    @Mock
+    private com.gifiti.api.analytics.PostHogClient postHogClient;
+
+    @Mock
+    private com.gifiti.api.analytics.PostHogProperties postHogProperties;
+
+    @Mock
+    private com.gifiti.api.analytics.WishlistReturnedDedupeCache wishlistReturnedDedupeCache;
+
     @InjectMocks
     private WishlistService wishlistService;
 

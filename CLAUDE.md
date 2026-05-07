@@ -41,5 +41,12 @@ Java 21: Follow standard conventions
 - `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` must NEVER be committed
 - R2 API token should have minimal permissions (Object Read & Write on single bucket)
 - Image upload rate limited to 20/hour per user
+- `POSTHOG_API_KEY` must NEVER be committed; per-environment keys (prod != staging != local); rotate via PostHog dashboard on suspected compromise.
+- PostHog DPA executed and on file before `POSTHOG_ENABLED=true` in production (see security-findings.md F-1).
+- Account-deletion runbook drafted in `docs/` before `POSTHOG_ENABLED=true` in production (see security-findings.md F-3 Track 1).
+
+## Telemetry
+
+- `password_validation_rejected` INFO logs are calibration telemetry; correlate by `correlation_id`, no password content is logged. Emitted by `PasswordValidationService` on each rejection with `rule=<common_pattern|email_username_match|sequential_chars|repeated_pattern>`. Goal: data-driven decision on whether the "common_pattern" rule is overcalibrated for real users (Move 2 / Diagnosis C, 2026-05-06).
 
 <!-- MANUAL ADDITIONS END -->

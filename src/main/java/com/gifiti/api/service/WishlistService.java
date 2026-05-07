@@ -1,5 +1,8 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.analytics.PostHogClient;
+import com.gifiti.api.analytics.PostHogProperties;
+import com.gifiti.api.analytics.WishlistReturnedDedupeCache;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.WishlistListResponse;
@@ -22,7 +25,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for wishlist CRUD operations with ownership validation.
@@ -36,6 +43,9 @@ public class WishlistService {
     private final WishlistItemRepository wishlistItemRepository;
     private final ReservationRepository reservationRepository;
     private final WishlistMapper wishlistMapper;
+    private final PostHogClient postHogClient;
+    private final PostHogProperties postHogProperties;
+    private final WishlistReturnedDedupeCache wishlistReturnedDedupeCache;
 
     /**
      * Create a new wishlist for the authenticated user.
@@ -51,6 +61,24 @@ public class WishlistService {
         Wishlist saved = wishlistRepository.save(wishlist);
 
         log.info("Wishlist created with ID: {}", saved.getId());
+
+        // Feature 007 / T6: emit wishlist_created AFTER persist succeeds.
+        // Properties limited to the §5.6 allowlist (user_id, occasion_type,
+        // item_count_at_creation). occasion_type is the closed enum
+        // WishlistCategory; safe per Security review. Fail-open per F-6.
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("user_id", userId);
+            WishlistCategory category = saved.getCategory();
+            props.put("occasion_type", category != null ? category.name() : null);
+            props.put("item_count_at_creation", 0);
+            postHogClient.capture("wishlist_created", userId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during wishlist_created emission: {}",
+                    analyticsFailure.getMessage());
+        }
+
         return wishlistMapper.toResponse(saved, 0);
     }
 
@@ -111,7 +139,48 @@ public class WishlistService {
         log.debug("Finding wishlist {} for user {}", id, userId);
 
         Wishlist wishlist = findAndVerifyOwnership(id, userId);
+
+        // Feature 007 / T9 — wishlist_returned per OQ-1 (X): owner returns to
+        // view their own wishlist >= N days after creation. Non-owner reads
+        // exit upstream via AccessDeniedException, so reaching this point
+        // already proves ownership. Per ADR 0007 § Finding 0004 ratification,
+        // dedupe is owned by the backend (PostHog does not dedupe identical
+        // events with different timestamps): see WishlistReturnedDedupeCache
+        // for the (userId, wishlistId, UTC-day) key.
+        emitWishlistReturnedIfThresholdMet(wishlist, userId);
+
         return wishlistMapper.toResponse(wishlist, getItemCount(id));
+    }
+
+    private void emitWishlistReturnedIfThresholdMet(Wishlist wishlist, String userId) {
+        if (wishlist.getCreatedAt() == null) {
+            return;
+        }
+        long daysSinceCreation = ChronoUnit.DAYS.between(wishlist.getCreatedAt(), Instant.now());
+        int threshold = postHogProperties.returnThresholdDays();
+        if (daysSinceCreation < threshold) {
+            return;
+        }
+
+        // Per ADR 0007 § Finding 0004: reserve the (userId, wishlistId,
+        // UTC-day) slot BEFORE invoking the wrapper. Dedupe consumes the
+        // slot even if PostHog later throws — fail-open semantics still hold
+        // (the user request never breaks), but we deliberately do NOT retry
+        // emission on SDK failure because analytics are not financial events.
+        if (!wishlistReturnedDedupeCache.tryReserve(userId, wishlist.getId())) {
+            return;
+        }
+
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("user_id", userId);
+            props.put("days_since_creation", daysSinceCreation);
+            postHogClient.capture("wishlist_returned", userId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during wishlist_returned emission: {}",
+                    analyticsFailure.getMessage());
+        }
     }
 
     /**

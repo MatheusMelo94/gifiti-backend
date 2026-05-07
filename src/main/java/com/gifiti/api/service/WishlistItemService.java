@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.dto.request.CreateItemRequest;
 import com.gifiti.api.dto.request.UpdateItemRequest;
 import com.gifiti.api.dto.response.ItemListResponse;
@@ -19,7 +20,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for wishlist item CRUD operations with ownership validation.
@@ -34,6 +37,7 @@ public class WishlistItemService {
     private final ReservationRepository reservationRepository;
     private final WishlistItemMapper wishlistItemMapper;
     private final WishlistService wishlistService;
+    private final PostHogClient postHogClient;
 
     /**
      * Create a new item in a wishlist.
@@ -51,10 +55,35 @@ public class WishlistItemService {
         // Verify user owns the wishlist
         Wishlist wishlist = wishlistService.findAndVerifyOwnership(wishlistId, userId);
 
+        // Per ADR 0007 § Finding 0002 ratification: item_position is 0-indexed.
+        // Capture pre-insert count BEFORE save so the emitted item_position
+        // reflects the position the new item lands at. Reading the count
+        // before save guarantees idempotency under retries: the same logical
+        // insertion always reports the same position.
+        int itemPositionAtInsert = wishlistItemRepository.findByWishlistId(wishlistId).size();
+
         WishlistItem item = wishlistItemMapper.toEntity(request, wishlistId, userId);
         WishlistItem saved = wishlistItemRepository.save(item);
 
         log.info("Item created with ID: {} in wishlist {}", saved.getId(), wishlistId);
+
+        // Feature 007 / T7: emit item_added AFTER persist succeeds. Properties
+        // limited to §5.6 allowlist (wishlist_id, user_id, item_position).
+        // Item names, descriptions, image URLs, and product links are all on
+        // the FORBIDDEN_PROPERTIES list — caller-supplied content never
+        // reaches PostHog. Fail-open per F-6.
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("wishlist_id", wishlistId);
+            props.put("user_id", userId);
+            props.put("item_position", itemPositionAtInsert);
+            postHogClient.capture("item_added", userId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during item_added emission: {}",
+                    analyticsFailure.getMessage());
+        }
+
         return wishlistItemMapper.toResponse(saved);
     }
 
