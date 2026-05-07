@@ -108,17 +108,15 @@ Your 2 events:
 
 | Key | Type | Source |
 |---|---|---|
-| `wishlist_id` | string | The `shareableId` from the URL (NanoID, 21 chars `[A-Za-z0-9_-]`) |
-| `is_owner` | boolean | `currentUser?.id === wishlist.ownerId` (false for anonymous) |
+| `shareable_id` | string | The `shareableId` from the URL (NanoID, 21 chars `[A-Za-z0-9_-]`) |
+| `item_count` | number | Number of items on the wishlist at view time |
 | `is_authenticated` | boolean | `!!currentUser` |
-| `share_channel` | string | UTM source if present, else `'direct'`. Examples: `'whatsapp'`, `'instagram'`, `'twitter'`, `'email'`, `'direct'` |
 
 ```js
 posthog.capture('wishlist_viewed', {
-  wishlist_id: shareableId,
-  is_owner: currentUser?.id === wishlist.ownerId,
+  shareable_id: shareableId,
+  item_count: wishlist.items.length,
   is_authenticated: !!currentUser,
-  share_channel: new URLSearchParams(window.location.search).get('utm_source') ?? 'direct',
 });
 ```
 
@@ -130,15 +128,17 @@ posthog.capture('wishlist_viewed', {
 
 | Key | Type | Source |
 |---|---|---|
-| `wishlist_id` | string | The `shareableId` of the wishlist being shared |
-| `share_channel` | string | Which share button was clicked. Examples: `'copy_link'`, `'native_share'`, `'whatsapp'`, `'twitter'`, `'email'` |
+| `shareable_id` | string | The `shareableId` of the wishlist being shared |
+| `method` | string | Which share method was used. Currently only `'copy_link'` is wired; future values may include `'native'`, `'whatsapp'`, `'twitter'`, `'email'` |
 
 ```js
 posthog.capture('wishlist_shared', {
-  wishlist_id: shareableId,
-  share_channel: 'copy_link', // or 'native_share', 'whatsapp', etc.
+  shareable_id: shareableId,
+  method: 'copy_link',
 });
 ```
+
+> **Note on property naming:** these property names reflect the shipped frontend implementation (per frontend team report 2026-05-07, citing commit `0084e8a` and `src/pages/shared-wishlist-page.tsx`). Backend's `PostHogClient.ALLOWED_PROPERTIES` is event-name-keyed, not property-keyed — so the backend allowlist doesn't enforce these specific frontend property names. Consistency in PostHog dashboards depends on the frontend keeping the names stable.
 
 ### Property-naming discipline (load-bearing)
 
