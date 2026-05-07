@@ -1,0 +1,53 @@
+# docker-compose.yml — fully-offline local dev stack for gifiti-backend.
+# Cite: devops-conventions.md § Project Setup
+#
+# WHEN TO USE THIS:
+#   You want to run the app without internet access, or you want to avoid
+#   pointing local dev at the staging/prod MongoDB Atlas cluster, or you
+#   want to verify the production Dockerfile boots cleanly end-to-end.
+#
+# WHEN NOT TO USE THIS:
+#   For day-to-day dev, `./run-local.sh` (which uses your .env's MONGODB_URI
+#   pointing at Atlas) is faster: no container rebuilds on code changes,
+#   live reload, attached debugger.
+#
+# This compose file overrides MONGODB_URI to point at a local container, so
+# any data you create here is ephemeral and isolated from Atlas.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      # mongosh exits 0 only when the server responds to ping.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # Override .env's Atlas URI with the local container.
+      MONGODB_URI: "mongodb://mongo:27017/gifiti"
+      SPRING_PROFILES_ACTIVE: local
+      PORT: "8080"
+    # Healthcheck baked into the Dockerfile takes effect here too — compose
+    # will report container health automatically.
+
+volumes:
+  mongo-data:
