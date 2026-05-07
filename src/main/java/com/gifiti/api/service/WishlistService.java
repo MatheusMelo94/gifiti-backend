@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.WishlistListResponse;
@@ -22,7 +23,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for wishlist CRUD operations with ownership validation.
@@ -36,6 +39,7 @@ public class WishlistService {
     private final WishlistItemRepository wishlistItemRepository;
     private final ReservationRepository reservationRepository;
     private final WishlistMapper wishlistMapper;
+    private final PostHogClient postHogClient;
 
     /**
      * Create a new wishlist for the authenticated user.
@@ -51,6 +55,24 @@ public class WishlistService {
         Wishlist saved = wishlistRepository.save(wishlist);
 
         log.info("Wishlist created with ID: {}", saved.getId());
+
+        // Feature 007 / T6: emit wishlist_created AFTER persist succeeds.
+        // Properties limited to the §5.6 allowlist (user_id, occasion_type,
+        // item_count_at_creation). occasion_type is the closed enum
+        // WishlistCategory; safe per Security review. Fail-open per F-6.
+        try {
+            Map<String, Object> props = new HashMap<>();
+            props.put("user_id", userId);
+            WishlistCategory category = saved.getCategory();
+            props.put("occasion_type", category != null ? category.name() : null);
+            props.put("item_count_at_creation", 0);
+            postHogClient.capture("wishlist_created", userId, props);
+        } catch (RuntimeException analyticsFailure) {
+            log.warn(
+                    "Suppressed PostHog failure during wishlist_created emission: {}",
+                    analyticsFailure.getMessage());
+        }
+
         return wishlistMapper.toResponse(saved, 0);
     }
 
