@@ -97,6 +97,14 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
+      - key: POSTHOG_API_KEY
+        sync: false
+      - key: POSTHOG_ENABLED
+        value: "false"
+      - key: POSTHOG_HOST
+        value: https://us.i.posthog.com
+      - key: POSTHOG_RETURN_THRESHOLD_DAYS
+        value: "7"
 
 # Prod service is intentionally NOT declared here — see header comment.
 # The existing `gifiti-backend` service (Oregon / Starter) continues to be
