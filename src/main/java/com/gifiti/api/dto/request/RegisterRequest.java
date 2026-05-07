@@ -1,5 +1,6 @@
 package com.gifiti.api.dto.request;
 
+import com.gifiti.api.model.enums.SignupTrigger;
 import com.gifiti.api.validation.NoHtml;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -45,4 +46,29 @@ public class RegisterRequest {
     @NoHtml
     @Schema(description = "Optional display name (derived from email if absent)", example = "Maria Santos")
     private String displayName;
+
+    /**
+     * Decision H (plan v2 §3, §5.5): optional analytics field describing the
+     * UX context that originated the signup. Server-side default is
+     * {@link SignupTrigger#DIRECT} if omitted; surfaced in the
+     * {@code signup_completed} PostHog event as {@code signup_trigger}.
+     */
+    @Schema(description = "Analytics: what action triggered the signup",
+            example = "CREATED_WISHLIST")
+    private SignupTrigger signupTrigger;
+
+    /**
+     * Decision H: when the signup was triggered from a specific public
+     * wishlist (e.g. "Create my own list" CTA on a friend's birthday list),
+     * this field carries that wishlist's ID. UUID-shaped string; rejected
+     * if non-empty and malformed. Surfaced as {@code referrer_wishlist_id}
+     * in the {@code signup_completed} event.
+     */
+    @Pattern(
+            regexp = "^[0-9a-fA-F-]{36}$|^$",
+            message = "{validation.shared.uuid.invalid}"
+    )
+    @Schema(description = "Analytics: UUID of the wishlist that referred this signup, if any",
+            example = "123e4567-e89b-12d3-a456-426614174000")
+    private String referrerWishlistId;
 }
