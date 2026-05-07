@@ -18,7 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param enabled split-gate flag — when {@code false}, {@link PostHogClient}
  *                short-circuits before touching the SDK
  * @param apiKey PostHog server-side project key; per-environment
- * @param host PostHog ingest host; EU region per Decision A
+ * @param host PostHog ingest host; US region per Decision A (revised 2026-05-07)
  * @param returnThresholdDays threshold for the {@code wishlist_returned}
  *                            event (T9, OQ-4 default 7)
  */
@@ -31,7 +31,7 @@ public record PostHogProperties(
 ) {
     public PostHogProperties {
         if (host == null || host.isBlank()) {
-            host = "https://eu.i.posthog.com";
+            host = "https://us.i.posthog.com";
         }
         if (returnThresholdDays <= 0) {
             returnThresholdDays = 7;

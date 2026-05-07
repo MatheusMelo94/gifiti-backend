@@ -74,7 +74,7 @@ class WishlistServiceReturnedDedupeTest {
         clock = new MutableClock(Instant.parse("2026-05-06T12:00:00Z"));
         dedupeCache = new WishlistReturnedDedupeCache(clock);
 
-        PostHogProperties props = new PostHogProperties(true, "key", "https://eu.i.posthog.com", 7);
+        PostHogProperties props = new PostHogProperties(true, "key", "https://us.i.posthog.com", 7);
         service = new WishlistService(
                 wishlistRepository,
                 wishlistItemRepository,
