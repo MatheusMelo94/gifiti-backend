@@ -29,7 +29,7 @@ import org.springframework.context.annotation.Configuration;
 public class PostHogConfiguration {
 
     @Bean
-    public PostHogClient postHogClient(PostHogProperties properties) {
+    PostHogClient postHogClient(PostHogProperties properties) {
         if (!properties.enabled()) {
             log.info("PostHog analytics DISABLED (split-gate). No events will be emitted from this process.");
             return new PostHogClient(null, false);
