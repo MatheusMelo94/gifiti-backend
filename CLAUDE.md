@@ -43,8 +43,9 @@ Java 21: Follow standard conventions
 - Image upload rate limited to 20/hour per user
 - `POSTHOG_API_KEY` must NEVER be committed; per-environment keys (prod != staging != local); rotate via PostHog dashboard on suspected compromise.
 - PostHog DPA executed (signed 2026-05-07) — **F-1 cleared**. Renew per PostHog cadence (annual / on amendment).
-- Account-deletion runbook drafted in `docs/posthog-account-deletion-runbook.md` before `POSTHOG_ENABLED=true` in production (security-findings.md F-3 Track 1). **STILL OPEN.**
-- Privacy policy must disclose PostHog as a sub-processor before `POSTHOG_ENABLED=true` in production (security-findings.md F-2). **STILL OPEN.**
+- Privacy policy at gifiti.app/privacy discloses PostHog as sub-processor with full LGPD Art. 9 transparency (live 2026-05-07) — **F-2 cleared**. Frontend additionally suppresses IP collection via `ip: false` in PostHog SDK init (frontend security review F-04 mitigation), reducing personal-data scope.
+- Account-deletion runbook drafted in `docs/posthog-account-deletion-runbook.md` (security-findings.md F-3 Track 1). Operational TODOs (5 placeholders for audit-log location, PostHog Project ID/API key location, DPA storage location, R2 bucket+endpoint) remain to be filled in before first real deletion request — acceptable per user decision 2026-05-07.
+- `POSTHOG_ENABLED=true` flipped in Render prod env vars 2026-05-07. Backend events now flowing to https://us.posthog.com/project/412989. All compliance gates cleared.
 
 ## Telemetry
 
