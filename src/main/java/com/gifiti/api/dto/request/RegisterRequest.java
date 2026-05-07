@@ -60,15 +60,23 @@ public class RegisterRequest {
     /**
      * Decision H: when the signup was triggered from a specific public
      * wishlist (e.g. "Create my own list" CTA on a friend's birthday list),
-     * this field carries that wishlist's ID. UUID-shaped string; rejected
-     * if non-empty and malformed. Surfaced as {@code referrer_wishlist_id}
-     * in the {@code signup_completed} event.
+     * this field carries that wishlist's {@code shareableId} (NanoID, the
+     * 21-char URL-safe identifier exposed in share-link URLs at
+     * {@code /wishlists/share/{shareableId}}). Rejected if non-empty and
+     * malformed. Surfaced as {@code referrer_wishlist_id} in the
+     * {@code signup_completed} event.
+     *
+     * <p>Plan §5.5 originally specified "Mongo ObjectId 24-char hex". This
+     * was ratified as a deviation on 2026-05-06 (post Code Reviewer Finding
+     * 0001): the frontend has the {@code shareableId} from the share-link
+     * URL with no extra fetch, and the analytic purpose is share-attribution
+     * which keys naturally to the {@code shareableId}.
      */
     @Pattern(
-            regexp = "^[0-9a-fA-F-]{36}$|^$",
-            message = "{validation.shared.uuid.invalid}"
+            regexp = "^[A-Za-z0-9_-]{21}$|^$",
+            message = "{validation.shared.wishlistId.invalid}"
     )
-    @Schema(description = "Analytics: UUID of the wishlist that referred this signup, if any",
-            example = "123e4567-e89b-12d3-a456-426614174000")
+    @Schema(description = "Analytics: shareableId (NanoID) of the wishlist that referred this signup, if any",
+            example = "V1StGXR8_Z5jdHi6B-myT")
     private String referrerWishlistId;
 }

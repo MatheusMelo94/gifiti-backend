@@ -60,14 +60,14 @@ The backend exposes two **optional** fields on `RegisterRequest`:
   "email": "user@example.test",
   "password": "...",
   "signupTrigger": "CREATED_WISHLIST",
-  "referrerWishlistId": "123e4567-e89b-12d3-a456-426614174000"
+  "referrerWishlistId": "V1StGXR8_Z5jdHi6B-myT"
 }
 ```
 
 Field semantics:
 
 - `signupTrigger`: enum, one of `CREATED_WISHLIST`, `RESERVED_ITEM`, `DIRECT`. Defaults to `DIRECT` server-side when omitted. Frontend MUST set the value the user's flow actually started with.
-- `referrerWishlistId`: optional UUID-shaped string. Only meaningful when `signupTrigger` is `CREATED_WISHLIST` or `RESERVED_ITEM` and the user came from a specific public wishlist. Empty string accepted as null.
+- `referrerWishlistId`: optional **wishlist `shareableId`** — the 21-char NanoID (alphabet `[A-Za-z0-9_-]`) found at the end of share-link URLs (`/wishlists/share/{shareableId}`). Only meaningful when `signupTrigger` is `CREATED_WISHLIST` or `RESERVED_ITEM` and the user came from a specific public wishlist. Empty string accepted as null. Frontend should pass the `shareableId` from the URL the user clicked through, not the wishlist's internal `_id`.
 
 When to send each value:
 
