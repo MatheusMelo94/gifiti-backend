@@ -2,6 +2,7 @@ package com.gifiti.api.unit;
 
 import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.analytics.PostHogProperties;
+import com.gifiti.api.analytics.WishlistReturnedDedupeCache;
 import com.gifiti.api.dto.response.WishlistResponse;
 import com.gifiti.api.exception.AccessDeniedException;
 import com.gifiti.api.mapper.WishlistMapper;
@@ -53,6 +54,7 @@ class WishlistServiceReturnedAnalyticsTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private WishlistMapper wishlistMapper;
     @Mock private PostHogClient postHogClient;
+    @Mock private WishlistReturnedDedupeCache wishlistReturnedDedupeCache;
 
     @InjectMocks private WishlistService service;
 
@@ -65,6 +67,12 @@ class WishlistServiceReturnedAnalyticsTest {
         // Threshold: 7 days, matching the plan's recommended default (OQ-4).
         PostHogProperties props = new PostHogProperties(true, "key", "https://eu.i.posthog.com", 7);
         ReflectionTestUtils.setField(service, "postHogProperties", props);
+
+        // Dedupe cache permits emission by default in this suite. The
+        // dedupe-specific contract is exercised in
+        // WishlistServiceReturnedDedupeTest. Per ADR 0007 § Finding 0004.
+        when(wishlistReturnedDedupeCache.tryReserve(anyString(), anyString()))
+                .thenReturn(true);
 
         when(wishlistMapper.toResponse(any(Wishlist.class), any(Integer.class)))
                 .thenReturn(WishlistResponse.builder().id(WISHLIST_ID).build());

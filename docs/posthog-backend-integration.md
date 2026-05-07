@@ -15,7 +15,7 @@ The backend emits **5 server-side events** through a single wrapper bean (`com.g
 | # | Event | Emit site (service) | Properties |
 |---|---|---|---|
 | 2 | `wishlist_created` | `WishlistService.create` | `user_id`, `occasion_type`, `item_count_at_creation` |
-| 3 | `item_added` | `WishlistItemService.create` | `wishlist_id`, `user_id`, `item_position` |
+| 3 | `item_added` | `WishlistItemService.create` | `wishlist_id`, `user_id`, `item_position` (0-indexed: the first item added to a wishlist emits `item_position=0`) |
 | 5 | `item_reserved` | `ReservationService.reserve` | `wishlist_id`, `item_id`, `reserver_user_id` |
 | 6 | `signup_completed` | `AuthService.register` | `signup_trigger`, `referrer_wishlist_id` |
 | 7 | `wishlist_returned` | `WishlistService.findById` | `user_id`, `days_since_creation` |
@@ -45,7 +45,8 @@ Frontend responsibilities:
 2. **Emit `wishlist_viewed`** from the wishlist view page. `referrer` from `document.referrer`; `item_count` from the rendered response. `viewer_logged_in` from the session state (true iff a JWT cookie is present and valid).
 3. **Emit `wishlist_shared`** from share-button click handlers. `share_channel` is one of the four documented enum values; do not invent new ones without an architect-approved taxonomy update.
 4. **Identity stitching after signup.** After a successful signup response, call `posthog.identify(userId, { $anon_distinct_id: anonId })` where `anonId` is the pre-login distinctId PostHog assigned to the anonymous session. Test in incognito (definition-of-done item #2 from the cofounder spec).
-5. **Send the `X-PostHog-DistinctId` header** on every authenticated request. Backend reads it via `PostHogDistinctIdFilter` (alphanumeric + `-` and `_`, max 64 chars). Anything else is dropped with a `WARN`.
+
+For all backend-emit events on authenticated requests, the backend uses the authenticated `userId` as the PostHog `distinctId`; no client-side header is required or consulted.
 
 ---
 
@@ -147,4 +148,3 @@ Listed so frontend doesn't accidentally assume backend will do them:
 - Architecture conventions: `architecture-conventions.md` § Layer Rules, § Configuration & Secrets, § Logging
 - Privacy posture: `CLAUDE.md § Production Security Checklist`
 - Wrapper implementation: `src/main/java/com/gifiti/api/analytics/PostHogClient.java`
-- Filter: `src/main/java/com/gifiti/api/analytics/PostHogDistinctIdFilter.java`

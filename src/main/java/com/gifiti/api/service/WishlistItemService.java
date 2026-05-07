@@ -55,10 +55,10 @@ public class WishlistItemService {
         // Verify user owns the wishlist
         Wishlist wishlist = wishlistService.findAndVerifyOwnership(wishlistId, userId);
 
-        // Feature 007 / T7: capture pre-insert count BEFORE save so the
-        // emitted item_position reflects the position the new item lands at
-        // (0-indexed — first item is position 0). Reading the count before
-        // save guarantees idempotency under retries: the same logical
+        // Per ADR 0007 § Finding 0002 ratification: item_position is 0-indexed.
+        // Capture pre-insert count BEFORE save so the emitted item_position
+        // reflects the position the new item lands at. Reading the count
+        // before save guarantees idempotency under retries: the same logical
         // insertion always reports the same position.
         int itemPositionAtInsert = wishlistItemRepository.findByWishlistId(wishlistId).size();
 

@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Clock;
+
 /**
  * Wires the singleton {@link PostHogClient} bean used by services to emit
  * analytics events.
@@ -27,6 +29,18 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(PostHogProperties.class)
 public class PostHogConfiguration {
+
+    /**
+     * UTC system clock used by {@link WishlistReturnedDedupeCache} to compute
+     * the day-bucket portion of dedupe keys. Exposed as a bean so unit tests
+     * can substitute a deterministic clock without reflection. Per ADR 0007
+     * § Finding 0004 ratification, the day bucket is computed in UTC to
+     * avoid timezone-edge double-emits.
+     */
+    @Bean
+    Clock postHogClock() {
+        return Clock.systemUTC();
+    }
 
     @Bean
     PostHogClient postHogClient(PostHogProperties properties) {

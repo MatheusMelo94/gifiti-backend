@@ -44,6 +44,8 @@ class WishlistServiceCreateAnalyticsTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private WishlistMapper wishlistMapper;
     @Mock private PostHogClient postHogClient;
+    @Mock private com.gifiti.api.analytics.PostHogProperties postHogProperties;
+    @Mock private com.gifiti.api.analytics.WishlistReturnedDedupeCache wishlistReturnedDedupeCache;
 
     @InjectMocks private WishlistService service;
 

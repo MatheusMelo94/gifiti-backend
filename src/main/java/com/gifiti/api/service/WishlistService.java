@@ -2,6 +2,7 @@ package com.gifiti.api.service;
 
 import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.analytics.PostHogProperties;
+import com.gifiti.api.analytics.WishlistReturnedDedupeCache;
 import com.gifiti.api.dto.request.CreateWishlistRequest;
 import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.WishlistListResponse;
@@ -44,6 +45,7 @@ public class WishlistService {
     private final WishlistMapper wishlistMapper;
     private final PostHogClient postHogClient;
     private final PostHogProperties postHogProperties;
+    private final WishlistReturnedDedupeCache wishlistReturnedDedupeCache;
 
     /**
      * Create a new wishlist for the authenticated user.
@@ -141,8 +143,10 @@ public class WishlistService {
         // Feature 007 / T9 — wishlist_returned per OQ-1 (X): owner returns to
         // view their own wishlist >= N days after creation. Non-owner reads
         // exit upstream via AccessDeniedException, so reaching this point
-        // already proves ownership. PostHog handles dedupe at the analytics
-        // layer; backend does not.
+        // already proves ownership. Per ADR 0007 § Finding 0004 ratification,
+        // dedupe is owned by the backend (PostHog does not dedupe identical
+        // events with different timestamps): see WishlistReturnedDedupeCache
+        // for the (userId, wishlistId, UTC-day) key.
         emitWishlistReturnedIfThresholdMet(wishlist, userId);
 
         return wishlistMapper.toResponse(wishlist, getItemCount(id));
@@ -155,6 +159,15 @@ public class WishlistService {
         long daysSinceCreation = ChronoUnit.DAYS.between(wishlist.getCreatedAt(), Instant.now());
         int threshold = postHogProperties.returnThresholdDays();
         if (daysSinceCreation < threshold) {
+            return;
+        }
+
+        // Per ADR 0007 § Finding 0004: reserve the (userId, wishlistId,
+        // UTC-day) slot BEFORE invoking the wrapper. Dedupe consumes the
+        // slot even if PostHog later throws — fail-open semantics still hold
+        // (the user request never breaks), but we deliberately do NOT retry
+        // emission on SDK failure because analytics are not financial events.
+        if (!wishlistReturnedDedupeCache.tryReserve(userId, wishlist.getId())) {
             return;
         }
 
