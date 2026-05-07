@@ -32,13 +32,13 @@ npm install posthog-js
 pnpm add posthog-js
 ```
 
-Initialize with the EU host (LGPD adequacy — Decision A):
+Initialize with the US host (matches account region; LGPD Art. 33 compliance via PostHog DPA standard contractual clauses — Decision A revised 2026-05-07):
 
 ```js
 import posthog from 'posthog-js';
 
 posthog.init('<frontend-posthog-api-key>', {
-  api_host: 'https://eu.i.posthog.com',
+  api_host: 'https://us.i.posthog.com',
   loaded: (posthog) => {
     // SDK ready. Do NOT capture events from here directly —
     // events should be captured at user-action boundaries.
@@ -273,7 +273,7 @@ Three things:
 Before you flip your frontend feature flag or deploy to production:
 
 1. Verify `posthog.init` only fires after consent (in dev tools, observe `posthog` is `undefined` before clicking Accept).
-2. Verify the 2 frontend events appear in PostHog's "Live events" view (https://eu.posthog.com/events).
+2. Verify the 2 frontend events appear in PostHog's "Live events" view (https://us.posthog.com/project/412989/activity/explore).
 3. Verify `posthog.identify` fires after signup with both `userId` and `$anon_distinct_id` (use PostHog's "Persons" view to confirm the merge).
 4. Verify share-link sign-ups arrive on the backend with `referrerWishlistId` populated (check backend logs or PostHog's `signup_completed` event for the property).
 5. Verify a malformed `referrerWishlistId` (e.g., a UUID-shaped string from old code) returns 400 from the registration endpoint, not 500 — confirms the validation is doing what it should.
