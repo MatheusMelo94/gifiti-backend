@@ -2,6 +2,7 @@ package com.gifiti.api.analytics;
 
 import com.posthog.server.PostHogCaptureOptions;
 import com.posthog.server.PostHogInterface;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -185,10 +186,13 @@ public class PostHogClient {
     }
 
     /**
-     * Flush queued events synchronously. Called by {@code @PreDestroy} during
-     * graceful shutdown (T11) so events queued late in the request lifecycle
-     * are not lost.
+     * Flush queued events synchronously. Wired to Spring's container shutdown
+     * via {@code @PreDestroy} (security-findings.md F-6) so events queued
+     * late in the request lifecycle are not lost when the JVM stops. The
+     * disabled-mode short-circuit makes this a safe no-op in environments
+     * where the SDK was never instantiated.
      */
+    @PreDestroy
     public void flush() {
         if (!enabled) {
             return;
