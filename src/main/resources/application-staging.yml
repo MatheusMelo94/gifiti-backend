@@ -18,12 +18,13 @@ springdoc:
 app:
   swagger:
     enabled: true
-  # Feature 007 split-gate: staging starts with PostHog disabled. Operator
-  # flips POSTHOG_ENABLED=true in Render after the DPA + deletion-runbook
-  # prerequisites are met (security-findings.md F-1, F-3). The hard-set
-  # below survives even if the env var is missing.
+  # Feature 007 split-gate: staging defaults to PostHog disabled. Operator
+  # flips POSTHOG_ENABLED=true in Render to enable. Defaulting to false
+  # is defense-in-depth — a missing env var cannot accidentally enable
+  # emission. Bound to env var so operator decision (env var) is
+  # authoritative when set explicitly.
   posthog:
-    enabled: false
+    enabled: ${POSTHOG_ENABLED:false}
 
 # Slightly more verbose logging in staging to make defect-hunting easier.
 logging:
