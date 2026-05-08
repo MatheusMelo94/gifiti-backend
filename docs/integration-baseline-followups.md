@@ -109,4 +109,27 @@ When all items are addressed, this file is deleted in a single commit titled `ch
 
 ---
 
-**Last reviewed:** 2026-05-06 (created during Move 2 dispatch — integration suite unblock + telemetry add)
+## 6. PostHog frontend taxonomy gaps — product-side, not engineering
+
+**Context:** Frontend integration shipped in PR #16 + frontend repo's PostHog merge (commit `0084e8a`, 2026-05-07). Two values from the cofounder's authoritative 7-event taxonomy are not currently fired by the frontend because the UI surfaces that would set them don't exist yet.
+
+**Gap 1 — `signupTrigger=CREATED_WISHLIST`:**
+The `SignupTrigger` enum (`com.gifiti.api.model.enums.SignupTrigger`) has three values: `DIRECT`, `RESERVED_ITEM`, `CREATED_WISHLIST`. Backend accepts all three. Frontend currently fires only `DIRECT` (default) and `RESERVED_ITEM` (when a logged-out user clicks "Reserve" on a shared wishlist). `CREATED_WISHLIST` requires a "Start your own wishlist" CTA on the shared page — UI element not built yet.
+
+**Gap 2 — Share method beyond `"copy_link"`:**
+The `wishlist_shared` event has a `method` property. Frontend currently only sets `"copy_link"` because clipboard-copy is the only share UI wired. When the frontend adds native share sheet (`navigator.share()`), social platform buttons (WhatsApp, Twitter, etc.), each new share path adds a new `method` value — no schema change required, just new event property values.
+
+**Mitigation candidates (when product is ready):**
+- Add "Start your own wishlist" CTA on shared wishlist page → frontend stashes `signup_trigger=CREATED_WISHLIST` to sessionStorage on click.
+- Add native + social share UI → frontend extends share button family with `method: "native"`, `method: "whatsapp"`, etc.
+
+**Revisit triggers:**
+- Cofounder building dashboards and asking "where's the CREATED_WISHLIST signup data?".
+- A user-research session reveals share-link clicks are the primary attribution path and the team wants to break out copy-link vs native share.
+- Product roadmap explicitly schedules either UI element.
+
+**Owner role at trigger time:** Product Strategist (UX decision) → Frontend Engineer (implementation). Backend has no involvement; both gaps are entirely frontend-product scope.
+
+---
+
+**Last reviewed:** 2026-05-07 (added during frontend handoff doc correction)

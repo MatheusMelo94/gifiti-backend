@@ -20,10 +20,12 @@ app:
   # Feature 007 split-gate: prod starts with PostHog disabled. Operator
   # flips POSTHOG_ENABLED=true in Render ONLY after PostHog DPA is signed
   # AND account-deletion runbook is drafted (security-findings.md F-1, F-3).
-  # The hard-set below is defense-in-depth — a misconfigured env var cannot
-  # accidentally enable emission before the prerequisites are met.
+  # Defaults to false in prod (defense-in-depth); operator flips
+  # POSTHOG_ENABLED=true in Render env vars only after prerequisites cleared.
+  # As of 2026-05-07: F-1 (DPA), F-2 (privacy policy), F-3 Track 1 (runbook)
+  # all cleared; operator authorized POSTHOG_ENABLED=true.
   posthog:
-    enabled: false
+    enabled: ${POSTHOG_ENABLED:false}
 
 # Logging in prod: INFO root, no DEBUG noise.
 logging:
