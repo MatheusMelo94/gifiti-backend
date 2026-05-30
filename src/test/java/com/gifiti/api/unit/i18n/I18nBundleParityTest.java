@@ -60,11 +60,15 @@ class I18nBundleParityTest {
             "email.password.reset.fallback.link",
             "email.password.reset.ignore.notice",
             "email.password.reset.footer.copyright",
-            "email.password.reset.footer.notice"
-            // NOTE: Feature 009 T9 expands this set with 3 additional keys
-            // (error.auth.password.weak, error.auth.email.not.verified,
-            // error.auth.already.verified) — those land alongside their
-            // exception-handler wiring in Bucket 1.
+            "email.password.reset.footer.notice",
+            // Feature 009 / T9 — auth-flow human-readable copy for the new
+            // exception classes (Bucket 1). The errorCode discriminator is
+            // the frontend narrowing key (ADR 0009 Decision B), but the
+            // server-rendered message field still needs locale-resolved text
+            // for legacy clients + Spring-side log determinism.
+            "error.auth.password.weak",
+            "error.auth.email.not.verified",
+            "error.auth.already.verified"
     );
 
     @Test
