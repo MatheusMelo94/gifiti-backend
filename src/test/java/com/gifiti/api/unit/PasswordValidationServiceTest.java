@@ -65,8 +65,11 @@ class PasswordValidationServiceTest {
         // contain the password content" is meaningful.
         String input = "Qwerty-Reject-Telemetry-2026!";
 
+        // Feature 009 / T13: PasswordValidationService now throws
+        // WeakPasswordException (ERROR_CODE=WEAK_PASSWORD) per ADR 0009
+        // Decision C + G. Per-rule telemetry below remains unchanged.
         assertThatThrownBy(() -> service.validate(input, "tester@example.com"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(com.gifiti.api.exception.WeakPasswordException.class);
 
         // Single INFO log line with rule and correlation_id.
         assertThat(logAppender.list)

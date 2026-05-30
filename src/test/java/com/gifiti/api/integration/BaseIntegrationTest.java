@@ -114,10 +114,17 @@ public abstract class BaseIntegrationTest {
     }
 
     /**
-     * Create a test user and return their access token.
+     * Create a test user, mark email verified, and return their access token.
+     *
+     * <p>Feature 009 / T14 — user Q1 = YES (2026-05-30) gates login on
+     * {@code user.isEmailVerified()}. The unverified path is no longer a
+     * valid happy-path-login scenario; tests that need an unverified user
+     * call {@link #registerTestUser(String, String)} directly and assert the
+     * gate. Tests that need an authenticated user call this helper.</p>
      */
     protected String createUserAndGetToken(String email, String password) throws Exception {
         registerTestUser(email, password);
+        markEmailVerified(email);
         return loginAndGetToken(email, password);
     }
 

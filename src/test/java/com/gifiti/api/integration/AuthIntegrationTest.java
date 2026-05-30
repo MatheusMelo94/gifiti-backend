@@ -98,6 +98,10 @@ class AuthIntegrationTest extends BaseIntegrationTest {
         void shouldLoginSuccessfully() throws Exception {
             // Register first
             registerTestUser("login@example.com", "BlueP4nther$Xyz2!");
+            // Feature 009 / T14 — user Q1 = YES (2026-05-30): login is now
+            // gated on user.isEmailVerified(); without this fixture the login
+            // path returns 401 EMAIL_NOT_VERIFIED instead of 200.
+            markEmailVerified("login@example.com");
 
             // Login
             LoginRequest request = LoginRequest.builder()

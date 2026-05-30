@@ -125,7 +125,15 @@ class ExceptionLocalizationIntegrationTest extends BaseIntegrationTest {
         // 'error.email.verification.required'. The criterion #9 contract is
         // that *any* AccessDeniedException routes through MessageSource — this
         // satisfies it without requiring the cross-user wishlist setup.
+        // Feature 009 / T14 — user Q1=YES gates login on emailVerified, so
+        // we must verify *before* login, then re-unverify the user so the
+        // wishlist-create endpoint trips the gate as the test intends.
         String token = createUserAndGetToken("ad-pt@example.test", "BlueP4nther$Xyz2!");
+        mongoTemplate.updateFirst(
+                new org.springframework.data.mongodb.core.query.Query(
+                        org.springframework.data.mongodb.core.query.Criteria.where("email").is("ad-pt@example.test")),
+                new org.springframework.data.mongodb.core.query.Update().set("emailVerified", false),
+                com.gifiti.api.model.User.class);
 
         // Create-wishlist requires email verification (UserService#requireVerified)
         // → AccessDeniedException → 403 + localized message.

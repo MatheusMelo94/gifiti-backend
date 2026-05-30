@@ -1,5 +1,6 @@
 package com.gifiti.api.service;
 
+import com.gifiti.api.exception.WeakPasswordException;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
@@ -64,7 +65,13 @@ public class PasswordValidationService {
      *
      * @param password The password to validate
      * @param email The user's email (to check similarity)
-     * @throws IllegalArgumentException if password is weak
+     * @throws WeakPasswordException if password is weak (feature 009 / T13 —
+     *         per ADR 0009 § Decision C; previously {@link IllegalArgumentException}
+     *         with rule-specific literal English strings, but the new dedicated
+     *         exception carries the {@code WEAK_PASSWORD} discriminator and
+     *         the generic {@code error.auth.password.weak} MessageSource key
+     *         per Decision G — per-rule diagnostics remain in the INFO
+     *         telemetry below, NOT in the user-facing surface).
      */
     public void validate(String password, String email) {
         String lowerPassword = password.toLowerCase();
@@ -74,9 +81,10 @@ public class PasswordValidationService {
             if (lowerPassword.contains(pattern)) {
                 log.warn("SECURITY_EVENT: Weak password rejected - contains common pattern");
                 emitRejectionTelemetry(RULE_COMMON_PATTERN);
-                throw new IllegalArgumentException(
-                    "Password contains a common pattern. Please choose a stronger password."
-                );
+                // Feature 009 / T13 — generic WEAK_PASSWORD discriminator
+                // (Decision G). Per-rule diagnostics stay in the INFO telemetry
+                // line above (feature 007 calibration channel).
+                throw new WeakPasswordException();
             }
         }
 
@@ -86,9 +94,7 @@ public class PasswordValidationService {
             if (emailPrefix.length() >= 3 && lowerPassword.contains(emailPrefix)) {
                 log.warn("SECURITY_EVENT: Weak password rejected - contains email username");
                 emitRejectionTelemetry(RULE_EMAIL_USERNAME_MATCH);
-                throw new IllegalArgumentException(
-                    "Password must not contain your email username."
-                );
+                throw new WeakPasswordException();
             }
         }
 
@@ -96,18 +102,14 @@ public class PasswordValidationService {
         if (hasSequentialChars(lowerPassword, 4)) {
             log.warn("SECURITY_EVENT: Weak password rejected - contains sequential characters");
             emitRejectionTelemetry(RULE_SEQUENTIAL_CHARS);
-            throw new IllegalArgumentException(
-                "Password must not contain sequential characters (e.g., 'aaaa', '1234', 'abcd')."
-            );
+            throw new WeakPasswordException();
         }
 
         // Check for repeated patterns
         if (hasRepeatedPattern(lowerPassword)) {
             log.warn("SECURITY_EVENT: Weak password rejected - contains repeated pattern");
             emitRejectionTelemetry(RULE_REPEATED_PATTERN);
-            throw new IllegalArgumentException(
-                "Password must not contain repeated patterns."
-            );
+            throw new WeakPasswordException();
         }
 
         log.debug("Password validation passed");

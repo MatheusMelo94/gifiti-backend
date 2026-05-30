@@ -70,6 +70,8 @@ class ProfileIntegrationTest extends BaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(regRequest)))
                     .andExpect(status().isCreated());
 
+            // Feature 009 / T14 — user Q1 = YES gates login on email verified.
+            markEmailVerified("loginprofile@example.com");
             String token = loginAndGetToken("loginprofile@example.com", "SecurePass123!");
 
             // Verify the login response includes displayName and roles
@@ -100,6 +102,8 @@ class ProfileIntegrationTest extends BaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated());
 
+            // Feature 009 / T14 — Q1 = YES login gate.
+            markEmailVerified("profile@example.com");
             String token = loginAndGetToken("profile@example.com", "SecurePass123!");
 
             mockMvc.perform(get("/api/v1/profile")

@@ -54,7 +54,16 @@ class SelfServiceLanguageIntegrationTest extends BaseIntegrationTest {
     @DisplayName("TC-29: PUT /profile preferredLanguage=pt-BR persists and switches subsequent emails to pt-BR")
     void tc29_change_language_switches_emails() throws Exception {
         // Register English-speaking user (no Accept-Language header).
+        // Feature 009 / T14 — user Q1=YES gates login on emailVerified, so
+        // we verify to obtain a token then un-verify so the resend-verification
+        // step below actually emits a new email (instead of short-circuiting
+        // through the "already verified" branch).
         String token = createUserAndGetToken("lang-change@example.test", "BlueP4nther$Xyz2!");
+        mongoTemplate.updateFirst(
+                new org.springframework.data.mongodb.core.query.Query(
+                        org.springframework.data.mongodb.core.query.Criteria.where("email").is("lang-change@example.test")),
+                new org.springframework.data.mongodb.core.query.Update().set("emailVerified", false),
+                User.class);
         capturingEmailService.clear();
 
         // Step 1: switch preferredLanguage via PUT /profile.

@@ -3,6 +3,7 @@ package com.gifiti.api.unit;
 import com.gifiti.api.analytics.PostHogClient;
 import com.gifiti.api.dto.request.RegisterRequest;
 import com.gifiti.api.exception.ConflictException;
+import com.gifiti.api.exception.EmailAlreadyRegisteredException;
 import com.gifiti.api.model.User;
 import com.gifiti.api.model.enums.SignupTrigger;
 import com.gifiti.api.repository.BlacklistedTokenRepository;
@@ -163,8 +164,12 @@ class AuthServiceSignupAnalyticsTest {
                 .password("SecureP@ss123!")
                 .build();
 
+        // Feature 009 / T12: duplicate-email refactor to EmailAlreadyRegisteredException
+        // per ADR 0009 § Decision C. EmailAlreadyRegisteredException extends
+        // LocalizedRuntimeException directly (not ConflictException), carrying
+        // ERROR_CODE=EMAIL_ALREADY_REGISTERED.
         assertThatThrownBy(() -> authService.register(request))
-                .isInstanceOf(ConflictException.class);
+                .isInstanceOf(EmailAlreadyRegisteredException.class);
 
         verify(postHogClient, never()).capture(anyString(), anyString(), any());
     }
