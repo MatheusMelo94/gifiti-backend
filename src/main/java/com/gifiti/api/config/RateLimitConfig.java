@@ -83,6 +83,26 @@ public class RateLimitConfig {
             .build();
 
     /**
+     * Cache for private-wishlist access-code attempt buckets (feature 008 / T9).
+     *
+     * <p>Per ADR 0008 § Decision G (rate-limit calibration): keyed by
+     * {@code ip + ":" + shareableId} so an attacker spamming one wishlist
+     * cannot lock out legitimate recipients on a different wishlist sharing
+     * the same NAT (compound-key per Security findings F-2). 5 tokens, refill
+     * 5 / 10 min. {@code expireAfterAccess(15 min)} gives the bucket time to
+     * refill before eviction.
+     *
+     * <p>Consumption point is the service layer (FAILED-validation branch only),
+     * NOT the filter — see ADR 0008 § Decision G architectural note. Successful
+     * validation calls {@link #resetAccessCodeBucket} to invalidate the entry
+     * per ADR 0008 § Decision G "reset on success".
+     */
+    private final Cache<String, Bucket> accessCodeAttemptBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMinutes(15))
+            .maximumSize(10_000)
+            .build();
+
+    /**
      * Try to consume a token from the auth bucket.
      * Limit: 10 requests per minute per IP.
      *
@@ -240,6 +260,65 @@ public class RateLimitConfig {
      */
     private Bucket createUploadBucket() {
         Bandwidth limit = Bandwidth.classic(20, Refill.greedy(20, Duration.ofHours(1)));
+        return Bucket.builder()
+                .addLimit(limit)
+                .build();
+    }
+
+    /**
+     * Try to consume a token from the access-code attempt bucket for the
+     * given {@code (clientIp, shareableId)} pair (feature 008 / T9).
+     *
+     * <p>Per ADR 0008 § Decision G: bucket holds 5 tokens, refilled 5 / 10 min.
+     * Returns {@code false} when the bucket is exhausted — callers should
+     * map this to {@link com.gifiti.api.exception.AccessCodeRateLimitedException}
+     * → 429.
+     *
+     * <p>This consumption point is called from
+     * {@code PublicWishlistService.findByShareableId(...)} on the failed-
+     * validation branch only. Successful validation invalidates the bucket
+     * via {@link #resetAccessCodeBucket}.
+     *
+     * @param clientIp     the request's client IP (resolved by
+     *                     {@code RateLimitFilter.getClientIp}; for service-
+     *                     layer use, the controller pulls it from the request)
+     * @param shareableId  the wishlist's shareableId
+     * @return {@code true} if a token was consumed (caller proceeds with
+     *         failed-validation response); {@code false} if rate-limited
+     *         (caller throws AccessCodeRateLimitedException)
+     */
+    public boolean tryConsumeAccessCode(String clientIp, String shareableId) {
+        String key = clientIp + ":" + shareableId;
+        Bucket bucket = accessCodeAttemptBuckets.get(key, k -> createAccessCodeBucket());
+        boolean allowed = bucket.tryConsume(1);
+        if (!allowed) {
+            log.warn("SECURITY_EVENT: Access-code rate limit exceeded, IP={}, shareableId={}",
+                    maskIp(clientIp), shareableId);
+        }
+        return allowed;
+    }
+
+    /**
+     * Reset (invalidate) the access-code attempt bucket for the given
+     * {@code (clientIp, shareableId)} pair — called on successful validation
+     * per ADR 0008 § Decision G "reset on success".
+     *
+     * <p>Per Security findings F-2 analysis: the fresh-5-token-budget concern
+     * after reset is real but bounded — an attacker who possesses the correct
+     * code has already won; the rate limit's job was to prevent them GETTING
+     * the code, not to slow them down after they have it.
+     */
+    public void resetAccessCodeBucket(String clientIp, String shareableId) {
+        String key = clientIp + ":" + shareableId;
+        accessCodeAttemptBuckets.invalidate(key);
+    }
+
+    /**
+     * Create a rate limit bucket for private-wishlist access-code attempts
+     * (feature 008 / T9). 5 tokens, refill 5 / 10 min per ADR 0008 § Decision G.
+     */
+    private Bucket createAccessCodeBucket() {
+        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(10)));
         return Bucket.builder()
                 .addLimit(limit)
                 .build();
