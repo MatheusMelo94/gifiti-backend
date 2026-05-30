@@ -132,4 +132,22 @@ The `wishlist_shared` event has a `method` property. Frontend currently only set
 
 ---
 
-**Last reviewed:** 2026-05-07 (added during frontend handoff doc correction)
+## 7. PostHog taxonomy expansion candidate: `wishlist_unlocked`
+
+**Context:** Feature 008 (private wishlist access codes, planned 2026-05-17) ships without PostHog instrumentation. The cofounder's authoritative 7-event taxonomy (per ADR 0007) stays at 7 events. Adding `wishlist_unlocked` (recipient successfully entered access code) was considered during feature 008 Architect ratification but deliberately deferred per ADR 0008 Decision I.
+
+**Why deferred:** Expanding the taxonomy is a cofounder/Product-Strategist decision, not a Backend Architect decision. Architect ratifying unilaterally would set the precedent that any developer can append events because they "obviously need it" — that's how taxonomies rot. Real signal (user complaints about gates being confusing, support emails) arrives before analytics would.
+
+**Revisit triggers:**
+- Cofounder asks for conversion data on access-code gates ("what fraction of share-link recipients successfully enter the code on first try?").
+- Access-code abandonment becomes a measurable support-volume signal.
+- Competitive analysis suggests gates are causing material drop-off.
+- A separate analytics feature explicitly requires this event as input.
+
+**If a revisit fires:** route through Product Strategist (taxonomy decision) → Backend Architect (ADR 0008 amendment) → Backend Engineer (instrumentation). Approximate cost: ~5-line PR for backend (one `postHogClient.capture` call in `PublicWishlistService.findByShareableId` after successful gate validation). Frontend would gain a new event in their dashboard.
+
+**Owner role at trigger time:** Product Strategist → Backend Architect → Backend Engineer.
+
+---
+
+**Last reviewed:** 2026-05-17 (added during feature 008 Architect ratification — `wishlist_unlocked` taxonomy expansion deferred)
