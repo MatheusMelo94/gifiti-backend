@@ -1,6 +1,7 @@
 package com.gifiti.api.exception;
 
 import com.gifiti.api.dto.response.ErrorResponse;
+import com.gifiti.api.util.FieldErrorCodeMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -126,6 +127,10 @@ public class GlobalExceptionHandler {
                         // because LocalValidatorFactoryBean is wired to the
                         // project MessageSource (see I18nConfig).
                         .message(error.getDefaultMessage())
+                        // Feature 009 / T8: machine-readable discriminator
+                        // per ADR 0009 § Decision D2. Frontend narrows on
+                        // errorCode for Spanish field-level error rendering.
+                        .errorCode(FieldErrorCodeMapper.mapMethodArgumentError(error))
                         .build())
                 .collect(Collectors.toList());
 
@@ -151,6 +156,10 @@ public class GlobalExceptionHandler {
                 .map(violation -> ErrorResponse.FieldError.builder()
                         .field(violation.getPropertyPath().toString())
                         .message(violation.getMessage())
+                        // Feature 009 / T8: same inventory as the
+                        // MethodArgumentNotValidException path above; mapper
+                        // covers the Jakarta-ConstraintViolation surface.
+                        .errorCode(FieldErrorCodeMapper.mapConstraintViolation(violation))
                         .build())
                 .collect(Collectors.toList());
 
