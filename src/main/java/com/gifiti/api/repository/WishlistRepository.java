@@ -1,6 +1,7 @@
 package com.gifiti.api.repository;
 
 import com.gifiti.api.model.Wishlist;
+import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.model.enums.WishlistCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,9 +13,13 @@ import java.util.Optional;
 
 /**
  * Repository for Wishlist MongoDB operations.
+ *
+ * <p>Extends {@link WishlistRepositoryCustom} for operations that cannot be
+ * expressed via derived-query naming — currently the atomic compare-and-set
+ * backfill write (feature 008 / T13, Security findings F-6 pin 3).
  */
 @Repository
-public interface WishlistRepository extends MongoRepository<Wishlist, String> {
+public interface WishlistRepository extends MongoRepository<Wishlist, String>, WishlistRepositoryCustom {
 
     /**
      * Find all wishlists owned by a user.
@@ -45,4 +50,13 @@ public interface WishlistRepository extends MongoRepository<Wishlist, String> {
     long countByOwnerUserId(String ownerUserId);
 
     List<Wishlist> findByIdIn(List<String> ids);
+
+    /**
+     * Find wishlists by visibility with null {@code accessCode}, used by the
+     * {@code AccessCodeBackfillRunner} (feature 008 / T13). Pairs with the
+     * atomic write {@link WishlistRepositoryCustom#updateAccessCodeIfNull}:
+     * the read narrows the candidate set; the write rechecks the null
+     * precondition (Security findings F-6 pin 3).
+     */
+    List<Wishlist> findByVisibilityAndAccessCodeIsNull(Visibility visibility);
 }
