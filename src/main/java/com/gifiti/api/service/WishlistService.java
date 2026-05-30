@@ -12,7 +12,9 @@ import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.mapper.WishlistMapper;
 import com.gifiti.api.model.Wishlist;
 import com.gifiti.api.model.WishlistItem;
+import com.gifiti.api.model.enums.Visibility;
 import com.gifiti.api.model.enums.WishlistCategory;
+import com.gifiti.api.util.AccessCodeGenerator;
 import com.aventrix.jnanoid.jnanoid.NanoIdUtils;
 import com.gifiti.api.repository.ReservationRepository;
 import com.gifiti.api.repository.WishlistItemRepository;
@@ -58,6 +60,16 @@ public class WishlistService {
         log.info("Creating wishlist '{}' for user: {}", request.getTitle(), userId);
 
         Wishlist wishlist = wishlistMapper.toEntity(request, userId);
+
+        // Feature 008 / T3: generate the access code for PRIVATE wishlists at
+        // creation time. Per ADR 0008 § Decision F (4-digit numeric, leading
+        // zeros allowed, SecureRandom-backed). PUBLIC wishlists leave the
+        // field null — § Decision E + § Decision F constrain access codes to
+        // PRIVATE-visibility wishlists only.
+        if (wishlist.getVisibility() == Visibility.PRIVATE) {
+            wishlist.setAccessCode(AccessCodeGenerator.generate());
+        }
+
         Wishlist saved = wishlistRepository.save(wishlist);
 
         log.info("Wishlist created with ID: {}", saved.getId());
@@ -197,11 +209,48 @@ public class WishlistService {
         log.info("Updating wishlist {} for user {}", id, userId);
 
         Wishlist wishlist = findAndVerifyOwnership(id, userId);
+
+        // Feature 008 / T4: capture visibility BEFORE the mapper mutates the
+        // entity so the transition can be detected after the mapper runs.
+        Visibility previousVisibility = wishlist.getVisibility();
+
         wishlistMapper.updateEntity(wishlist, request);
+
+        // Apply access-code lifecycle per ADR 0008 § Decision F (transitions):
+        //   PUBLIC → PRIVATE  → generate fresh code
+        //   PRIVATE → PUBLIC  → clear code (set null)
+        //   PRIVATE → PRIVATE → no-op (preserve existing code)
+        //   PUBLIC  → PUBLIC  → no-op
+        applyAccessCodeTransition(wishlist, previousVisibility);
+
         Wishlist saved = wishlistRepository.save(wishlist);
 
         log.info("Wishlist {} updated successfully", id);
         return wishlistMapper.toResponse(saved, getItemCount(id));
+    }
+
+    /**
+     * Apply the access-code transition rule per ADR 0008 § Decision F.
+     *
+     * <p>Centralizes the four-case transition matrix so it can be reviewed in
+     * one place. The previous visibility is captured before the mapper runs
+     * (see {@link #update}); the current visibility is read from the entity
+     * post-mapping.
+     *
+     * <p>Per Security findings F-4 (mass-assignment): {@code accessCode} is
+     * NEVER read from request input. Rotation has its own dedicated endpoint
+     * (T11).
+     */
+    private void applyAccessCodeTransition(Wishlist wishlist, Visibility previousVisibility) {
+        Visibility currentVisibility = wishlist.getVisibility();
+        if (currentVisibility == Visibility.PRIVATE && previousVisibility != Visibility.PRIVATE) {
+            // PUBLIC → PRIVATE: generate a fresh code.
+            wishlist.setAccessCode(AccessCodeGenerator.generate());
+        } else if (currentVisibility == Visibility.PUBLIC && previousVisibility == Visibility.PRIVATE) {
+            // PRIVATE → PUBLIC: clear the code.
+            wishlist.setAccessCode(null);
+        }
+        // PRIVATE → PRIVATE or PUBLIC → PUBLIC: leave accessCode untouched.
     }
 
     /**
