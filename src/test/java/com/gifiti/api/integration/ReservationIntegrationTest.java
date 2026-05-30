@@ -98,9 +98,15 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should return 404 for private wishlist")
-        void shouldReturn404ForPrivateWishlist() throws Exception {
-            // Create a private wishlist
+        @DisplayName("should require access code header for private wishlist reserve (feature 008 / T6 + T8)")
+        void shouldReturn403ForPrivateWishlistReserveWithoutHeader() throws Exception {
+            // Feature 008 / T6 + T8 + ADR 0008 § 3: reservation on a PRIVATE
+            // wishlist now surfaces the access-code gate. Pre-008 the public
+            // endpoint collapsed PRIVATE to 404 (feature 006 anti-enumeration);
+            // the gate UX needs the discriminator. Security findings F-4 pin 4
+            // is the highest-impact assertion: an authenticated user who knows
+            // the shareableId of a PRIVATE wishlist must NOT be able to reserve
+            // items on it without solving the gate.
             CreateWishlistRequest privateWishlistRequest = CreateWishlistRequest.builder()
                     .title("Private Wishlist")
                     .visibility(Visibility.PRIVATE)
@@ -116,10 +122,11 @@ class ReservationIntegrationTest extends BaseIntegrationTest {
             String privateShareableId = objectMapper.readTree(result.getResponse().getContentAsString())
                     .get("shareableId").asText();
 
-            // Try to reserve on private wishlist
+            // Try to reserve on private wishlist with no X-Wishlist-Access-Code header
             mockMvc.perform(post("/api/v1/public/wishlists/" + privateShareableId + "/items/anyitem/reserve")
                             .header("Authorization", bearerToken(reserverToken)))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.errorCode").value("ACCESS_CODE_REQUIRED"));
         }
 
         @Test

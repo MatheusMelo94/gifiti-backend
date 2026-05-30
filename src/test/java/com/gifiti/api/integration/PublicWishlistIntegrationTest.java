@@ -79,13 +79,19 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        @DisplayName("should return 404 for private wishlist (security: don't reveal existence)")
-        void shouldReturn404ForPrivateWishlist() throws Exception {
+        @DisplayName("should return 403 ACCESS_CODE_REQUIRED for private wishlist with no header (feature 008 / T6)")
+        void shouldReturn403ForPrivateWishlistWithoutHeader() throws Exception {
+            // Feature 008 / T6 inverts feature 006's anti-enumeration posture:
+            // PRIVATE wishlists now return 403 with an ACCESS_CODE_REQUIRED
+            // discriminator so the frontend gate UX can distinguish "wrong
+            // link" from "right link, need code". See ADR 0008 § 3 and
+            // Security findings F-1 (CONCUR-WITH-ARCHITECT).
             String shareableId = createPrivateWishlist("Secret Wishlist");
 
             mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
                             .header("Authorization", bearerToken(viewerToken)))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.errorCode").value("ACCESS_CODE_REQUIRED"));
         }
 
         @Test
@@ -118,8 +124,11 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
     class VisibilityChangeTests {
 
         @Test
-        @DisplayName("should hide wishlist when visibility changes to PRIVATE")
-        void shouldHideWishlistWhenVisibilityChangesToPrivate() throws Exception {
+        @DisplayName("should require access code when visibility changes to PRIVATE (feature 008 / T6)")
+        void shouldRequireAccessCodeWhenVisibilityChangesToPrivate() throws Exception {
+            // Feature 008 / T6: when visibility flips to PRIVATE, the public
+            // endpoint now returns 403 ACCESS_CODE_REQUIRED (previously 404 per
+            // feature 006 anti-enumeration). See ADR 0008 § 3.
             String shareableId = createPublicWishlist("Initially Public");
 
             // Verify authenticated access works
@@ -139,10 +148,11 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk());
 
-            // Access should now fail even when authenticated
+            // Access without the access-code header now surfaces the gate
             mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
                             .header("Authorization", bearerToken(viewerToken)))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.errorCode").value("ACCESS_CODE_REQUIRED"));
         }
 
         @Test
@@ -150,10 +160,12 @@ class PublicWishlistIntegrationTest extends BaseIntegrationTest {
         void shouldShowWishlistWhenVisibilityChangesToPublic() throws Exception {
             String shareableId = createPrivateWishlist("Initially Private");
 
-            // Verify access fails
+            // Pre-flip, the PRIVATE wishlist surfaces the gate (feature 008 /
+            // T6 — was 404 pre-008).
             mockMvc.perform(get("/api/v1/public/wishlists/" + shareableId)
                             .header("Authorization", bearerToken(viewerToken)))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.errorCode").value("ACCESS_CODE_REQUIRED"));
 
             // Change to public
             String wishlistId = getWishlistIdFromShareableId(shareableId);

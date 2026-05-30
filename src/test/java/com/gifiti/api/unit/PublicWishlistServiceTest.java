@@ -121,7 +121,8 @@ class PublicWishlistServiceTest {
                 .thenReturn(Optional.of(ownerWithDisplayName("Maria Silva")));
         LocaleContextHolder.setLocale(Locale.US);
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         assertThat(response.getOwnerDisplayName()).isEqualTo("Maria Silva");
     }
@@ -133,7 +134,8 @@ class PublicWishlistServiceTest {
                 .thenReturn(Optional.of(ownerWithDisplayName(null)));
         LocaleContextHolder.setLocale(Locale.US);
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         assertThat(response.getOwnerDisplayName()).isEqualTo(EN_FALLBACK);
     }
@@ -145,7 +147,8 @@ class PublicWishlistServiceTest {
                 .thenReturn(Optional.of(ownerWithDisplayName("   ")));
         LocaleContextHolder.setLocale(Locale.US);
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         assertThat(response.getOwnerDisplayName()).isEqualTo(EN_FALLBACK);
     }
@@ -157,7 +160,8 @@ class PublicWishlistServiceTest {
                 .thenReturn(Optional.of(ownerWithDisplayName(null)));
         LocaleContextHolder.setLocale(Locale.forLanguageTag("pt-BR"));
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         assertThat(response.getOwnerDisplayName()).isEqualTo(PT_FALLBACK);
     }
@@ -169,7 +173,8 @@ class PublicWishlistServiceTest {
                 .thenReturn(Optional.of(ownerWithDisplayName(null)));
         LocaleContextHolder.setLocale(Locale.US);
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         // The owner's email is "maria.santos@gmail.com" — pre-mitigation the
         // service returned "maria.santos". This regression guard ensures no
@@ -186,7 +191,8 @@ class PublicWishlistServiceTest {
         when(userRepository.findById(OWNER_ID)).thenReturn(Optional.empty());
         LocaleContextHolder.setLocale(Locale.US);
 
-        PublicWishlistResponse response = service.findByShareableId(SHAREABLE_ID);
+        PublicWishlistResponse response = service.findByShareableId(
+                SHAREABLE_ID, Optional.empty(), "127.0.0.1");
 
         assertThat(response.getOwnerDisplayName()).isEqualTo(EN_FALLBACK);
     }
@@ -197,7 +203,7 @@ class PublicWishlistServiceTest {
         when(wishlistRepository.findByShareableId("missing")).thenReturn(Optional.empty());
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> service.findByShareableId("missing"))
+                        () -> service.findByShareableId("missing", Optional.empty(), "127.0.0.1"))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }

@@ -157,13 +157,20 @@ class AnonymousPublicWishlistAccessTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("Anonymous GET on a PRIVATE wishlist returns 404 (anti-enumeration parity)")
-    void anonymous_get_private_wishlist_returns_404() throws Exception {
+    @DisplayName("Anonymous GET on a PRIVATE wishlist returns 403 ACCESS_CODE_REQUIRED (feature 008 / T6 inverts the 006 posture)")
+    void anonymous_get_private_wishlist_returns_403_access_code_required() throws Exception {
+        // Feature 008 / T6 + ADR 0008 § 3 ratify the privacy-posture
+        // inversion: PRIVATE wishlists now return 403 with an
+        // ACCESS_CODE_REQUIRED discriminator so the frontend gate UX can
+        // distinguish "right link, need code" from "wrong link". Security
+        // findings F-1 (CONCUR-WITH-ARCHITECT) accepts the trade given the
+        // 21-char NanoID makes random enumeration infeasible regardless.
         User owner = seedOwner("anon-private-owner@example.test", "BlueP4nther$Xyz2!", "Maria Silva");
         Wishlist wishlist = seedWishlist(owner, Visibility.PRIVATE, "Private list");
 
         mockMvc.perform(get("/api/v1/public/wishlists/{shareableId}", wishlist.getShareableId()))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_CODE_REQUIRED"));
     }
 
     @ParameterizedTest(name = "Anonymous {0} on the bare path returns 401 (method-specificity matrix)")
