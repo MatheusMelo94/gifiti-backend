@@ -90,7 +90,12 @@ public class PostHogClient {
             "wishlistTitle", "itemName", "itemDescription",
             "imageUrl", "coverImageUrl",
             "ipAddress", "userAgent",
-            "productLink"
+            "productLink",
+            // Feature 008 / T14 (Security findings F-9 defense-in-depth):
+            // accessCode is the 4-digit PRIVATE-wishlist secret. Not on any
+            // event's allowlist today, but listing it here ensures a future
+            // taxonomy expansion cannot leak it even by allowlist mistake.
+            "accessCode"
     );
 
     /**

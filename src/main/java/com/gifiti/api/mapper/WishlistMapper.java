@@ -51,6 +51,11 @@ public class WishlistMapper {
                 .itemCount(itemCount)
                 .createdAt(wishlist.getCreatedAt())
                 .updatedAt(wishlist.getUpdatedAt())
+                // Feature 008 / T5: propagate accessCode to the owner-facing
+                // response. Null for PUBLIC wishlists. PublicWishlistResponse
+                // and SharedWishlistResponse intentionally do NOT receive
+                // this field per Security findings F-4.
+                .accessCode(wishlist.getAccessCode())
                 .build();
     }
 

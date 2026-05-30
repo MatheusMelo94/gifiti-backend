@@ -242,6 +242,31 @@ public class WishlistController {
     }
 
     /**
+     * Rotate the access code on a PRIVATE wishlist (feature 008 / T11).
+     *
+     * <p>Owner-only; non-owner attempts return 404 (IDOR-resistance per
+     * Security recommendation). PUBLIC wishlists return 400 with errorCode
+     * {@code PUBLIC_WISHLIST_HAS_NO_ACCESS_CODE}.
+     */
+    @Operation(
+            summary = "Rotate the access code on a private wishlist (feature 008)",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Access code rotated"),
+                    @ApiResponse(responseCode = "400", description = "Wishlist is PUBLIC (no access code)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                    @ApiResponse(responseCode = "404", description = "Wishlist not found or not owned by user",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    @PostMapping("/{id}/rotate-access-code")
+    public ResponseEntity<WishlistResponse> rotateAccessCode(
+            @PathVariable String id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        log.debug("Rotating access code for wishlist {} for user: {}", id, userDetails.getUsername());
+        WishlistResponse response = wishlistService.rotateAccessCode(id, getUserId(userDetails));
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Extract user ID from UserDetails.
      * Looks up the actual MongoDB user ID from the email (which is the JWT subject).
      */

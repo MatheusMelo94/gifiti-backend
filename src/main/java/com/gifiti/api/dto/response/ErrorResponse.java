@@ -27,8 +27,26 @@ public class ErrorResponse {
     @Schema(description = "HTTP status code", example = "400")
     private int status;
 
-    @Schema(description = "HTTP error name", example = "Bad Request")
+    @Schema(description = "HTTP error name (HTTP reason phrase)", example = "Forbidden")
     private String error;
+
+    /**
+     * Machine-readable error discriminator (feature 008 / T7). Populated only
+     * by exception handlers that explicitly need a frontend-narrowable code
+     * (currently: AccessCodeRequiredException, InvalidAccessCodeException,
+     * AccessCodeRateLimitedException). Null for all pre-008 exception paths,
+     * which preserves backward compatibility via {@code @JsonInclude(NON_NULL)}.
+     *
+     * <p>Per user Q1 reconciliation (2026-05-17): the existing {@code error}
+     * field continues to carry the HTTP reason phrase ({@code "Forbidden"},
+     * {@code "Bad Request"}). Frontend narrows on this new {@code errorCode}
+     * field for the gate UX.
+     */
+    @Schema(description = "Machine-readable discriminator code "
+            + "(e.g. ACCESS_CODE_REQUIRED, INVALID_ACCESS_CODE, ACCESS_CODE_RATE_LIMITED). "
+            + "Only present on responses where a frontend narrows on the discriminator.",
+            example = "ACCESS_CODE_REQUIRED")
+    private String errorCode;
 
     @Schema(description = "Human-readable error message", example = "Validation failed")
     private String message;

@@ -166,6 +166,17 @@ class PostHogClientTest {
     }
 
     @Test
+    @DisplayName("FORBIDDEN_PROPERTIES contains 'accessCode' (feature 008 / T14, Security findings F-9 defense-in-depth)")
+    void forbidden_properties_includes_accessCode() {
+        // Per Security findings F-9: even though accessCode is not currently
+        // on any event's allowlist (and thus would already be dropped at
+        // emission), the defense-in-depth deny list MUST list it so that any
+        // future taxonomy expansion that mistakenly adds accessCode to an
+        // event's allowlist still cannot leak the secret.
+        assertThat(PostHogClient.FORBIDDEN_PROPERTIES).contains("accessCode");
+    }
+
+    @Test
     @DisplayName("capture() drops a property keyed 'productLink' (security-findings.md F-5)")
     void capture_drops_property_named_productLink() {
         PostHogClient client = enabledClient();

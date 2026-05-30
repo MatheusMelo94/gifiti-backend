@@ -219,6 +219,73 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    /**
+     * Feature 008 / T7. {@link AccessCodeRequiredException} → 403 with
+     * {@code errorCode="ACCESS_CODE_REQUIRED"} discriminator. Per ADR 0008
+     * § 3 (privacy-posture inversion): the 403 deliberately confirms
+     * existence; the gate UX requires the discriminator.
+     */
+    @ExceptionHandler(AccessCodeRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleAccessCodeRequired(
+            AccessCodeRequiredException ex, HttpServletRequest request) {
+        log.warn("Access code required: {}", ex.getMessage());
+        return buildErrorResponseWithCode(
+                HttpStatus.FORBIDDEN,
+                localize(AccessCodeRequiredException.MESSAGE_KEY, null),
+                AccessCodeRequiredException.ERROR_CODE,
+                request);
+    }
+
+    /**
+     * Feature 008 / T7. {@link InvalidAccessCodeException} → 403 with
+     * {@code errorCode="INVALID_ACCESS_CODE"} discriminator. Per Security
+     * findings F-3: malformed-format headers ALSO route here (identical
+     * outcome to wrong-but-conforming codes).
+     */
+    @ExceptionHandler(InvalidAccessCodeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAccessCode(
+            InvalidAccessCodeException ex, HttpServletRequest request) {
+        log.warn("Invalid access code: {}", ex.getMessage());
+        return buildErrorResponseWithCode(
+                HttpStatus.FORBIDDEN,
+                localize(InvalidAccessCodeException.MESSAGE_KEY, null),
+                InvalidAccessCodeException.ERROR_CODE,
+                request);
+    }
+
+    /**
+     * Feature 008 / T7. {@link AccessCodeRateLimitedException} → 429 with
+     * {@code errorCode="ACCESS_CODE_RATE_LIMITED"} discriminator. Per ADR 0008
+     * § Decision G: emitted when the per-(IP, shareableId) bucket is exhausted.
+     */
+    @ExceptionHandler(AccessCodeRateLimitedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessCodeRateLimited(
+            AccessCodeRateLimitedException ex, HttpServletRequest request) {
+        log.warn("Access code rate limited: {}", ex.getMessage());
+        return buildErrorResponseWithCode(
+                HttpStatus.TOO_MANY_REQUESTS,
+                localize(AccessCodeRateLimitedException.MESSAGE_KEY, null),
+                AccessCodeRateLimitedException.ERROR_CODE,
+                request);
+    }
+
+    /**
+     * Feature 008 / T11. {@link PublicWishlistHasNoAccessCodeException} → 400
+     * with {@code errorCode="PUBLIC_WISHLIST_HAS_NO_ACCESS_CODE"} discriminator.
+     * Per ADR 0008 § Decision E + § Decision F: PUBLIC wishlists have no
+     * access code by definition; rotating is a validation error.
+     */
+    @ExceptionHandler(PublicWishlistHasNoAccessCodeException.class)
+    public ResponseEntity<ErrorResponse> handlePublicWishlistHasNoAccessCode(
+            PublicWishlistHasNoAccessCodeException ex, HttpServletRequest request) {
+        log.warn("Rotate access code rejected on PUBLIC wishlist: {}", ex.getMessage());
+        return buildErrorResponseWithCode(
+                HttpStatus.BAD_REQUEST,
+                localize(PublicWishlistHasNoAccessCodeException.MESSAGE_KEY, null),
+                PublicWishlistHasNoAccessCodeException.ERROR_CODE,
+                request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {
@@ -290,6 +357,30 @@ public class GlobalExceptionHandler {
                 .timestamp(Instant.now())
                 .status(status.value())
                 .error(status.getReasonPhrase())
+                .message(message)
+                .path(request.getRequestURI())
+                .correlationId(MDC.get("correlationId"))
+                .build();
+
+        return ResponseEntity.status(status).body(response);
+    }
+
+    /**
+     * Build an {@link ErrorResponse} carrying the new {@code errorCode}
+     * discriminator field (feature 008 / T7).
+     *
+     * <p>Existing pre-008 handlers continue to call
+     * {@link #buildErrorResponse(HttpStatus, String, HttpServletRequest)} —
+     * they leave {@code errorCode} null, which {@code @JsonInclude(NON_NULL)}
+     * filters out at serialization. New 008 handlers use this variant.
+     */
+    private ResponseEntity<ErrorResponse> buildErrorResponseWithCode(
+            HttpStatus status, String message, String errorCode, HttpServletRequest request) {
+        ErrorResponse response = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .errorCode(errorCode)
                 .message(message)
                 .path(request.getRequestURI())
                 .correlationId(MDC.get("correlationId"))
