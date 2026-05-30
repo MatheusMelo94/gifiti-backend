@@ -8,7 +8,14 @@ import com.gifiti.api.dto.request.RegisterRequest;
 import com.gifiti.api.dto.response.AuthResponse;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.dto.response.RegisterResponse;
+import com.gifiti.api.exception.AccountLockedException;
+import com.gifiti.api.exception.AlreadyVerifiedException;
 import com.gifiti.api.exception.ConflictException;
+import com.gifiti.api.exception.EmailAlreadyRegisteredException;
+import com.gifiti.api.exception.EmailNotVerifiedException;
+import com.gifiti.api.exception.ExpiredTokenException;
+import com.gifiti.api.exception.InvalidCredentialsException;
+import com.gifiti.api.exception.InvalidTokenException;
 import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.BlacklistedToken;
 import com.gifiti.api.model.User;
@@ -92,7 +99,8 @@ public class AuthService {
 
         if (userRepository.existsByEmail(email)) {
             log.warn("Registration failed: email already exists: {}", email);
-            throw new ConflictException("error.email.already.registered", new Object[0]);
+            // Feature 009 / T12 — dedicated discriminator per ADR 0009 Decision C.
+            throw new EmailAlreadyRegisteredException();
         }
 
         // Derive displayName if not provided
@@ -172,10 +180,11 @@ public class AuthService {
         String email = normalizeEmail(request.getEmail());
         log.info("Login attempt for email: {}", email);
 
-        // Check if account is locked (H-02 security fix)
+        // Check if account is locked (H-02 security fix).
+        // Feature 009 / T12 — dedicated discriminator per ADR 0009 Decision E.
         if (accountLockoutService.isLocked(email)) {
             log.warn("SECURITY_EVENT: Login attempt on locked account: {}", email);
-            throw new UnauthorizedException("error.auth.account.locked", new Object[0]);
+            throw new AccountLockedException();
         }
 
         try {
@@ -190,7 +199,17 @@ public class AuthService {
             accountLockoutService.recordSuccessfulLogin(email);
 
             User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new UnauthorizedException("error.auth.credentials.invalid", new Object[0]));
+                    .orElseThrow(() -> new InvalidCredentialsException());
+
+            // Feature 009 / T14 — user Q1 = YES (2026-05-30): unverified-email
+            // users cannot log in. New business behavior; existing unverified
+            // users will be blocked on next login. Per ADR 0009 Open Q1 → 401
+            // (consistent with other login-failure modes; discriminator
+            // carries the reason).
+            if (!user.isEmailVerified()) {
+                log.warn("SECURITY_EVENT: Login rejected — email not verified: {}", email);
+                throw new EmailNotVerifiedException();
+            }
 
             String accessToken = jwtTokenProvider.generateAccessToken(authentication);
             String refreshToken = jwtTokenProvider.generateRefreshToken(authentication);
@@ -214,7 +233,10 @@ public class AuthService {
             // Record failed attempt for lockout tracking (H-02 security fix)
             accountLockoutService.recordFailedAttempt(email);
             log.warn("SECURITY_EVENT: Login failed for email: {} - invalid credentials", email);
-            throw new UnauthorizedException("error.auth.credentials.invalid", new Object[0]);
+            // Feature 009 / T12 — dedicated discriminator per ADR 0009 Decision C.
+            // Anti-enumeration discipline preserved: same code + same message
+            // for "unknown email" and "wrong password" branches.
+            throw new InvalidCredentialsException();
         }
     }
 
@@ -278,16 +300,34 @@ public class AuthService {
     }
 
     public MessageResponse verifyEmail(String token) {
+        // Feature 009 / T12 — dedicated discriminator per ADR 0009 Decision C.
         User user = userRepository.findByVerificationToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("error.auth.verification.token.invalid", new Object[0]));
+                .orElseThrow(() -> new InvalidTokenException("error.auth.verification.token.invalid"));
+
+        // Feature 009 / T15 — user Q2 = YES (2026-05-30): re-clicked
+        // verification link must return ALREADY_VERIFIED, not INVALID_TOKEN.
+        // Implementation per ADR 0009 Open Q2 shape (a): the verification
+        // token hash is retained on the User document after successful
+        // verification (see the save below — verificationToken is no longer
+        // nulled), so a second click that hashes to the same value still
+        // finds the user. We branch on emailVerified BEFORE the expiry check
+        // so an already-verified user gets the ALREADY_VERIFIED outcome
+        // regardless of whether the token has since expired (the verification
+        // already succeeded; expiry past that point is irrelevant).
+        if (user.isEmailVerified()) {
+            log.info("Re-clicked verification link for already-verified user: {}", user.getEmail());
+            throw new AlreadyVerifiedException();
+        }
 
         if (user.getVerificationTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("error.auth.verification.token.expired", new Object[0]);
+            throw new ExpiredTokenException("error.auth.verification.token.expired");
         }
 
         user.setEmailVerified(true);
-        user.setVerificationToken(null);
-        user.setVerificationTokenExpiry(null);
+        // Per Q2 = YES shape (a): retain verificationToken + expiry on the
+        // User document so a re-clicked link resolves to ALREADY_VERIFIED.
+        // The hashed token has zero value post-verification (single-use marker,
+        // not a credential); LGPD Art. 6 IX data-minimization remains satisfied.
         userRepository.save(user);
 
         log.info("Email verified for user: {}", user.getEmail());
@@ -355,11 +395,15 @@ public class AuthService {
     }
 
     public MessageResponse resetPassword(String token, String newPassword) {
+        // Feature 009 / T12 — dedicated discriminator per ADR 0009 Decision C.
+        // InvalidTokenException + ExpiredTokenException are shared between
+        // verify-email and reset-password endpoints; the constructor arg
+        // carries the endpoint-specific anti-enumeration message key.
         User user = userRepository.findByPasswordResetToken(hashToken(token))
-                .orElseThrow(() -> new UnauthorizedException("error.auth.password.reset.token.invalid", new Object[0]));
+                .orElseThrow(() -> new InvalidTokenException("error.auth.password.reset.token.invalid"));
 
         if (user.getPasswordResetTokenExpiry().isBefore(Instant.now())) {
-            throw new UnauthorizedException("error.auth.password.reset.token.expired", new Object[0]);
+            throw new ExpiredTokenException("error.auth.password.reset.token.expired");
         }
 
         passwordValidationService.validate(newPassword, user.getEmail());

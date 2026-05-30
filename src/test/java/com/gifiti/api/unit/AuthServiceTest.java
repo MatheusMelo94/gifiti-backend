@@ -4,6 +4,9 @@ import com.gifiti.api.dto.request.RegisterRequest;
 import com.gifiti.api.dto.response.AuthResponse;
 import com.gifiti.api.dto.response.MessageResponse;
 import com.gifiti.api.dto.response.RegisterResponse;
+import com.gifiti.api.exception.AlreadyVerifiedException;
+import com.gifiti.api.exception.ExpiredTokenException;
+import com.gifiti.api.exception.InvalidTokenException;
 import com.gifiti.api.exception.UnauthorizedException;
 import com.gifiti.api.model.User;
 import com.gifiti.api.model.BlacklistedToken;
@@ -134,20 +137,26 @@ class AuthServiceTest {
 
             assertThat(response.getMessage().messageKey()).isEqualTo("auth.email.verified.success");
             assertThat(user.isEmailVerified()).isTrue();
-            assertThat(user.getVerificationToken()).isNull();
+            // Feature 009 / T15 — user Q2 = YES (2026-05-30): verificationToken
+            // is now retained post-verification (was nulled before T15) so a
+            // re-clicked link can be resolved as ALREADY_VERIFIED.
+            assertThat(user.getVerificationToken()).isNotNull();
         }
 
         @Test
-        @DisplayName("should reject invalid token")
+        @DisplayName("should reject invalid token with INVALID_TOKEN errorCode")
         void shouldRejectInvalidToken() {
             when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.empty());
 
+            // Feature 009 / T12: dedicated InvalidTokenException carries
+            // ERROR_CODE=INVALID_TOKEN per ADR 0009 Decision C.
             assertThatThrownBy(() -> authService.verifyEmail("bad-token"))
-                    .isInstanceOf(UnauthorizedException.class);
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessage("error.auth.verification.token.invalid");
         }
 
         @Test
-        @DisplayName("should reject expired token")
+        @DisplayName("should reject expired token with EXPIRED_TOKEN errorCode")
         void shouldRejectExpiredToken() {
             User user = User.builder()
                     .email("test@example.com")
@@ -157,10 +166,31 @@ class AuthServiceTest {
 
             when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.of(user));
 
+            // Feature 009 / T12: dedicated ExpiredTokenException carries
+            // ERROR_CODE=EXPIRED_TOKEN per ADR 0009 Decision C.
             assertThatThrownBy(() -> authService.verifyEmail("expired-token"))
-                    .isInstanceOf(UnauthorizedException.class)
-                    // Task 10: getMessage() returns the i18n key.
+                    .isInstanceOf(ExpiredTokenException.class)
                     .hasMessage("error.auth.verification.token.expired");
+        }
+
+        @Test
+        @DisplayName("should throw ALREADY_VERIFIED on re-clicked link (user Q2 = YES)")
+        void shouldThrowAlreadyVerifiedOnReClick() {
+            // Q2 = YES (shape a): verifyEmail no longer nulls the verification
+            // token on success, so a re-click finds the user. The new branch
+            // checks emailVerified BEFORE the expiry guard.
+            User user = User.builder()
+                    .email("test@example.com")
+                    .verificationToken("retained-token")
+                    .verificationTokenExpiry(Instant.now().plus(1, ChronoUnit.HOURS))
+                    .emailVerified(true)
+                    .build();
+
+            when(userRepository.findByVerificationToken(anyString())).thenReturn(Optional.of(user));
+
+            assertThatThrownBy(() -> authService.verifyEmail("retained-token"))
+                    .isInstanceOf(AlreadyVerifiedException.class)
+                    .hasMessage("error.auth.already.verified");
         }
     }
 
@@ -265,16 +295,20 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("should reject invalid token")
+        @DisplayName("should reject invalid token with INVALID_TOKEN errorCode")
         void shouldRejectInvalidToken() {
             when(userRepository.findByPasswordResetToken(anyString())).thenReturn(Optional.empty());
 
+            // Feature 009 / T12: dedicated InvalidTokenException carries
+            // ERROR_CODE=INVALID_TOKEN; same class as verify-email path but
+            // constructor-arg message key is the reset-password variant.
             assertThatThrownBy(() -> authService.resetPassword("bad", "NewSecureP@ss1!"))
-                    .isInstanceOf(UnauthorizedException.class);
+                    .isInstanceOf(InvalidTokenException.class)
+                    .hasMessage("error.auth.password.reset.token.invalid");
         }
 
         @Test
-        @DisplayName("should reject expired token")
+        @DisplayName("should reject expired token with EXPIRED_TOKEN errorCode")
         void shouldRejectExpiredToken() {
             User user = User.builder()
                     .email("test@example.com")
@@ -284,9 +318,9 @@ class AuthServiceTest {
 
             when(userRepository.findByPasswordResetToken(anyString())).thenReturn(Optional.of(user));
 
+            // Feature 009 / T12: dedicated ExpiredTokenException.
             assertThatThrownBy(() -> authService.resetPassword("expired-token", "NewSecureP@ss1!"))
-                    .isInstanceOf(UnauthorizedException.class)
-                    // Task 10: getMessage() returns the i18n key.
+                    .isInstanceOf(ExpiredTokenException.class)
                     .hasMessage("error.auth.password.reset.token.expired");
         }
     }

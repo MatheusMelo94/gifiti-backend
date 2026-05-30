@@ -1,6 +1,7 @@
 package com.gifiti.api.exception;
 
 import com.gifiti.api.dto.response.ErrorResponse;
+import com.gifiti.api.util.FieldErrorCodeMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -126,6 +127,10 @@ public class GlobalExceptionHandler {
                         // because LocalValidatorFactoryBean is wired to the
                         // project MessageSource (see I18nConfig).
                         .message(error.getDefaultMessage())
+                        // Feature 009 / T8: machine-readable discriminator
+                        // per ADR 0009 § Decision D2. Frontend narrows on
+                        // errorCode for Spanish field-level error rendering.
+                        .errorCode(FieldErrorCodeMapper.mapMethodArgumentError(error))
                         .build())
                 .collect(Collectors.toList());
 
@@ -151,6 +156,10 @@ public class GlobalExceptionHandler {
                 .map(violation -> ErrorResponse.FieldError.builder()
                         .field(violation.getPropertyPath().toString())
                         .message(violation.getMessage())
+                        // Feature 009 / T8: same inventory as the
+                        // MethodArgumentNotValidException path above; mapper
+                        // covers the Jakarta-ConstraintViolation surface.
+                        .errorCode(FieldErrorCodeMapper.mapConstraintViolation(violation))
                         .build())
                 .collect(Collectors.toList());
 
@@ -283,6 +292,115 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 localize(PublicWishlistHasNoAccessCodeException.MESSAGE_KEY, null),
                 PublicWishlistHasNoAccessCodeException.ERROR_CODE,
+                request);
+    }
+
+    // ---------------------------------------------------------------------
+    // Feature 009 / T11 — 8 auth-flow errorCode-carrying handlers per ADR
+    // 0009 § Decision C. Pattern identical to the four feature-008 handlers
+    // above (AccessCodeRequired / InvalidAccessCode / AccessCodeRateLimited /
+    // PublicWishlistHasNoAccessCode). Each handler:
+    //  - logs at WARN.
+    //  - resolves the MessageSource key via localize(...).
+    //  - calls buildErrorResponseWithCode(...) with the discriminator constant.
+    //
+    // For InvalidTokenException and ExpiredTokenException the key is taken
+    // from the exception's getMessage() (set by the constructor arg) so each
+    // call site retains its specific human copy across verify-email /
+    // reset-password.
+    // ---------------------------------------------------------------------
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+            InvalidCredentialsException ex, HttpServletRequest request) {
+        log.warn("SECURITY_EVENT: Invalid credentials");
+        return buildErrorResponseWithCode(
+                HttpStatus.UNAUTHORIZED,
+                localize(InvalidCredentialsException.MESSAGE_KEY, null),
+                InvalidCredentialsException.ERROR_CODE,
+                request);
+    }
+
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailNotVerified(
+            EmailNotVerifiedException ex, HttpServletRequest request) {
+        log.warn("SECURITY_EVENT: Login rejected — email not verified");
+        return buildErrorResponseWithCode(
+                HttpStatus.UNAUTHORIZED,
+                localize(EmailNotVerifiedException.MESSAGE_KEY, null),
+                EmailNotVerifiedException.ERROR_CODE,
+                request);
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLocked(
+            AccountLockedException ex, HttpServletRequest request) {
+        log.warn("SECURITY_EVENT: Login rejected — account locked");
+        return buildErrorResponseWithCode(
+                HttpStatus.UNAUTHORIZED,
+                localize(AccountLockedException.MESSAGE_KEY, null),
+                AccountLockedException.ERROR_CODE,
+                request);
+    }
+
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyRegistered(
+            EmailAlreadyRegisteredException ex, HttpServletRequest request) {
+        log.warn("Registration rejected — email already registered");
+        return buildErrorResponseWithCode(
+                HttpStatus.CONFLICT,
+                localize(EmailAlreadyRegisteredException.MESSAGE_KEY, null),
+                EmailAlreadyRegisteredException.ERROR_CODE,
+                request);
+    }
+
+    @ExceptionHandler(WeakPasswordException.class)
+    public ResponseEntity<ErrorResponse> handleWeakPassword(
+            WeakPasswordException ex, HttpServletRequest request) {
+        log.warn("Password rejected — weak password");
+        return buildErrorResponseWithCode(
+                HttpStatus.BAD_REQUEST,
+                localize(WeakPasswordException.MESSAGE_KEY, null),
+                WeakPasswordException.ERROR_CODE,
+                request);
+    }
+
+    /**
+     * Shared handler for verify-email AND reset-password sites; the
+     * MessageSource key is carried on the exception's getMessage() (set by
+     * the constructor arg) so each endpoint retains its specific human copy.
+     */
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidToken(
+            InvalidTokenException ex, HttpServletRequest request) {
+        log.warn("SECURITY_EVENT: Invalid token presented");
+        return buildErrorResponseWithCode(
+                HttpStatus.UNAUTHORIZED,
+                localize(ex.getMessage(), null),
+                InvalidTokenException.ERROR_CODE,
+                request);
+    }
+
+    /** Shared handler for verify-email AND reset-password sites — see InvalidTokenException above. */
+    @ExceptionHandler(ExpiredTokenException.class)
+    public ResponseEntity<ErrorResponse> handleExpiredToken(
+            ExpiredTokenException ex, HttpServletRequest request) {
+        log.warn("Token rejected — expired");
+        return buildErrorResponseWithCode(
+                HttpStatus.UNAUTHORIZED,
+                localize(ex.getMessage(), null),
+                ExpiredTokenException.ERROR_CODE,
+                request);
+    }
+
+    @ExceptionHandler(AlreadyVerifiedException.class)
+    public ResponseEntity<ErrorResponse> handleAlreadyVerified(
+            AlreadyVerifiedException ex, HttpServletRequest request) {
+        log.info("Re-clicked verification link — already verified");
+        return buildErrorResponseWithCode(
+                HttpStatus.CONFLICT,
+                localize(AlreadyVerifiedException.MESSAGE_KEY, null),
+                AlreadyVerifiedException.ERROR_CODE,
                 request);
     }
 

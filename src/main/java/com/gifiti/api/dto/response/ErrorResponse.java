@@ -67,6 +67,7 @@ public class ErrorResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Schema(description = "Validation error on a specific field")
     public static class FieldError {
         @Schema(description = "Field name", example = "email")
@@ -74,5 +75,24 @@ public class ErrorResponse {
 
         @Schema(description = "Validation message", example = "Email is required")
         private String message;
+
+        /**
+         * Machine-readable discriminator for the field-level validation
+         * failure (feature 009 / T6). One of: {@code REQUIRED},
+         * {@code INVALID_FORMAT}, {@code TOO_SHORT}, {@code TOO_LONG},
+         * {@code OUT_OF_RANGE}, {@code WEAK_PASSWORD}, {@code TAKEN},
+         * {@code INVALID} per ADR 0009 § Decision D2.
+         *
+         * <p>Populated by {@code FieldErrorCodeMapper} (T7) when wired through
+         * the {@code @ExceptionHandler} handlers in {@code GlobalExceptionHandler}
+         * (T8). Null on legacy code paths that haven't migrated yet; the
+         * {@code @JsonInclude(NON_NULL)} on this class omits the field from
+         * JSON when null so existing clients are unaffected.
+         */
+        @Schema(description = "Machine-readable validation-failure discriminator "
+                + "(e.g. REQUIRED, INVALID_FORMAT, TOO_SHORT, TOO_LONG). "
+                + "Only present when the frontend narrows on the discriminator.",
+                example = "REQUIRED")
+        private String errorCode;
     }
 }

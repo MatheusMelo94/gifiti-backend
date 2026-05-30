@@ -20,7 +20,8 @@ import java.util.Optional;
 public enum Language {
 
     EN_US("en-US"),
-    PT_BR("pt-BR");
+    PT_BR("pt-BR"),
+    ES_419("es-419");
 
     private final String tag;
 
