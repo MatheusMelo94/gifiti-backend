@@ -35,6 +35,36 @@ class LanguageTest {
         assertThat(Language.fromTag("fr-FR")).isEmpty();
     }
 
+    // --- Feature 009 / T1: Spanish locale ES_419 (per ADR 0009 Decision A) ---
+
+    @Test
+    void fromTag_es_419_returns_ES_419() {
+        assertThat(Language.fromTag("es-419")).contains(Language.ES_419);
+    }
+
+    @Test
+    void toLocale_ES_419_round_trips_to_es_419_tag() {
+        assertThat(Language.ES_419.toLocale().toLanguageTag()).isEqualTo("es-419");
+    }
+
+    @Test
+    void Jackson_serializes_ES_419_as_es_419_tag() throws Exception {
+        String json = objectMapper.writeValueAsString(Language.ES_419);
+        assertThat(json).isEqualTo("\"es-419\"");
+    }
+
+    @Test
+    void Jackson_deserializes_es_419_tag_to_ES_419_enum() throws Exception {
+        Language result = objectMapper.readValue("\"es-419\"", Language.class);
+        assertThat(result).isEqualTo(Language.ES_419);
+    }
+
+    @Test
+    void fromLocale_es_419_returns_ES_419() {
+        Optional<Language> result = Language.fromLocale(Locale.forLanguageTag("es-419"));
+        assertThat(result).contains(Language.ES_419);
+    }
+
     @Test
     void fromTag_null_returns_empty() {
         assertThat(Language.fromTag(null)).isEmpty();
