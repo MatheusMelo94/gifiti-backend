@@ -269,6 +269,23 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    /**
+     * Feature 008 / T11. {@link PublicWishlistHasNoAccessCodeException} → 400
+     * with {@code errorCode="PUBLIC_WISHLIST_HAS_NO_ACCESS_CODE"} discriminator.
+     * Per ADR 0008 § Decision E + § Decision F: PUBLIC wishlists have no
+     * access code by definition; rotating is a validation error.
+     */
+    @ExceptionHandler(PublicWishlistHasNoAccessCodeException.class)
+    public ResponseEntity<ErrorResponse> handlePublicWishlistHasNoAccessCode(
+            PublicWishlistHasNoAccessCodeException ex, HttpServletRequest request) {
+        log.warn("Rotate access code rejected on PUBLIC wishlist: {}", ex.getMessage());
+        return buildErrorResponseWithCode(
+                HttpStatus.BAD_REQUEST,
+                localize(PublicWishlistHasNoAccessCodeException.MESSAGE_KEY, null),
+                PublicWishlistHasNoAccessCodeException.ERROR_CODE,
+                request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {

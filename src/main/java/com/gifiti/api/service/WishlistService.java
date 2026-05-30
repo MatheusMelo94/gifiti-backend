@@ -8,6 +8,7 @@ import com.gifiti.api.dto.request.UpdateWishlistRequest;
 import com.gifiti.api.dto.response.WishlistListResponse;
 import com.gifiti.api.dto.response.WishlistResponse;
 import com.gifiti.api.exception.AccessDeniedException;
+import com.gifiti.api.exception.PublicWishlistHasNoAccessCodeException;
 import com.gifiti.api.exception.ResourceNotFoundException;
 import com.gifiti.api.mapper.WishlistMapper;
 import com.gifiti.api.model.Wishlist;
@@ -21,6 +22,7 @@ import com.gifiti.api.repository.WishlistItemRepository;
 import com.gifiti.api.repository.WishlistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -327,6 +329,66 @@ public class WishlistService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
                         "Wishlist", "shareableId", shareableId));
+    }
+
+    /**
+     * Rotate the access code on a PRIVATE wishlist (feature 008 / T11).
+     *
+     * <p>Per ADR 0008 § Decision A (never expire — owner controls rotation
+     * manually) and § Decision F (4-digit SecureRandom code generation).
+     *
+     * <p>Authorization model — per Security findings reconciliation of the
+     * plan §4.3 vs §T13 contradiction (user ratification 2026-05-30):
+     * <ul>
+     *   <li>Wishlist not found → 404.</li>
+     *   <li>Wishlist not owned by {@code userId} → 404 (NOT 403). This
+     *       preserves IDOR-resistance: a non-owner cannot distinguish
+     *       "exists but you can't touch it" from "doesn't exist". Matches
+     *       the {@code rotateShareableId} precedent's spirit.</li>
+     *   <li>Wishlist visibility != PRIVATE →
+     *       {@link PublicWishlistHasNoAccessCodeException} → 400.</li>
+     * </ul>
+     *
+     * <p>Per Security findings F-5: emit a {@code SECURITY_EVENT: access code
+     * rotated} INFO log on success carrying {@code wishlistId},
+     * {@code userId}, and {@code correlationId} — NEVER the code value
+     * (old or new).
+     *
+     * @param wishlistId the wishlist's MongoDB id
+     * @param userId     the authenticated user's id
+     * @return the updated wishlist response carrying the freshly-generated
+     *         {@code accessCode}
+     * @throws ResourceNotFoundException             when the wishlist does
+     *         not exist OR is owned by another user (IDOR-resistance)
+     * @throws PublicWishlistHasNoAccessCodeException when the wishlist is
+     *         PUBLIC
+     */
+    public WishlistResponse rotateAccessCode(String wishlistId, String userId) {
+        log.info("Rotating access code for wishlist {} by user {}", wishlistId, userId);
+
+        // IDOR-resistance: collapse not-found and not-owner to the SAME 404
+        // path. Cannot use findAndVerifyOwnership here — that throws 403
+        // (AccessDeniedException) on not-owner, which leaks existence.
+        Wishlist wishlist = wishlistRepository.findById(wishlistId)
+                .filter(w -> userId.equals(w.getOwnerUserId()))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ResourceNotFoundException.KEY_NOT_FOUND_WITH_FIELD,
+                        "Wishlist", "id", wishlistId));
+
+        if (wishlist.getVisibility() != Visibility.PRIVATE) {
+            // PUBLIC wishlists have no access code (ADR 0008 § Decision E + F).
+            throw new PublicWishlistHasNoAccessCodeException();
+        }
+
+        // Per ADR 0008 § Decision F: SecureRandom-backed 4-digit code.
+        wishlist.setAccessCode(AccessCodeGenerator.generate());
+        Wishlist saved = wishlistRepository.save(wishlist);
+
+        // Per Security findings F-5: log the EVENT — never the code values.
+        log.info("SECURITY_EVENT: access code rotated wishlistId={} userId={} correlationId={}",
+                wishlistId, userId, MDC.get("correlationId"));
+
+        return wishlistMapper.toResponse(saved, getItemCount(wishlistId));
     }
 
     public WishlistResponse rotateShareableId(String id, String userId) {
