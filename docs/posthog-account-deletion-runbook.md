@@ -164,6 +164,19 @@ mongosh "<mongo-uri>" --quiet --eval '
 '
 ```
 
+**`email_delivery_log` is keyed by email address, not userId.** Every other collection
+above is reached through `userId`; this one records the recipient address of each
+outbound email, so it must be queried with the email from the deletion request and
+will be missed by any userId-based sweep.
+
+```bash
+# Replace <user-email> with the email from the deletion request.
+mongosh "<mongo-uri>" --quiet --eval '
+  const email = "<user-email>";
+  console.log("Email delivery records:", db.email_delivery_log.countDocuments({ recipient: email }));
+'
+```
+
 **Manual deletion in correct order (children first to avoid orphan-reference cleanup later):**
 
 ```bash
@@ -178,6 +191,23 @@ mongosh "<mongo-uri>" --quiet --eval '
   print("User record:",   db.users.deleteOne({ _id: userObjectId }).deletedCount);
 '
 ```
+
+**Then purge the email delivery records.** Run this *before* deleting the user
+record if you need to look the email up from it — once `db.users` is gone, the
+address is only available from the original request.
+
+```bash
+mongosh "<mongo-uri>" --quiet --eval '
+  const email = "<user-email>";
+  print("Email delivery records:", db.email_delivery_log.deleteMany({ recipient: email }).deletedCount);
+'
+```
+
+> `email_delivery_log` carries a 90-day TTL index on `createdAt`, so records age
+> out on their own. That bounds retention; it does **not** satisfy an erasure
+> request, which must be honoured immediately rather than waited out. Note the
+> `errorMessage` field may echo the address back from the provider, so deleting
+> by `recipient` removes both copies.
 
 **TODO — verify the collection list above is complete for current schema.** Check by running `db.runCommand("listCollections")` and reviewing whether any new collections (added in features after 007) reference user IDs.
 

@@ -28,7 +28,14 @@ import java.util.regex.Pattern;
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
-    private static final String CORRELATION_ID_MDC_KEY = "correlationId";
+
+    /**
+     * MDC key holding the current request's correlation ID. Public so that code
+     * reading it back out — notably the async email sender, which persists it
+     * alongside each delivery record — shares this definition rather than
+     * repeating the literal.
+     */
+    public static final String CORRELATION_ID_MDC_KEY = "correlationId";
 
     // Pattern: UUID or alphanumeric with hyphens, max 64 chars
     private static final Pattern VALID_CORRELATION_ID = Pattern.compile("^[a-zA-Z0-9-]{1,64}$");
