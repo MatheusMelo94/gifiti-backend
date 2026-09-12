@@ -46,6 +46,15 @@ management:
   endpoint:
     health:
       show-details: when-authorized  # Don't leak internal details publicly
+      status:
+        # DEGRADED (contributed by ResendHealthIndicator) sits between
+        # OUT_OF_SERVICE and UP: it surfaces in the payload but must never
+        # produce a non-2xx, because render.yaml points healthCheckPath at
+        # /actuator/health. A DOWN for an email-only fault would take the whole
+        # service out of rotation — strictly worse than the outage it reports.
+        order: DOWN,OUT_OF_SERVICE,DEGRADED,UP,UNKNOWN
+        http-mapping:
+          DEGRADED: 200
     env:
       enabled: false  # Disable sensitive endpoints
     heapdump:
